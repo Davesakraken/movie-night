@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "\\home\\dave\\projects\\movie-night-project\\pages",
+      "\\\\wsl.localhost\\Ubuntu\\home\\dave\\projects\\movie-night-project\\pages"
+    ]
+  }
+}
