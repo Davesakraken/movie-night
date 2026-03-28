@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const ip = getIP(req)
   const session = await getSession()
-  const hasSubmitted = await getSubmission(ip)
+  const hasSubmitted = await getSubmission(session.sessionId, ip)
 
   // Sort movies by votes desc
   const sorted = [...session.movies].sort((a, b) => b.votes - a.votes)

@@ -1,5 +1,11 @@
 {
   "permissions": {
+    "allow": [
+      "Read(///wsl.localhost/Ubuntu/home/dave/**)",
+      "Bash(ls \"\\\\\\\\wsl.localhost\\\\Ubuntu\\\\home\\\\dave\\\\projects\\\\movie-night-project\")",
+      "Read(//mnt/wsl/Ubuntu/home/dave/projects/**)",
+      "Bash(wsl ls:*)"
+    ],
     "additionalDirectories": [
       "\\home\\dave\\projects\\movie-night-project\\pages",
       "\\\\wsl.localhost\\Ubuntu\\home\\dave\\projects\\movie-night-project\\pages"

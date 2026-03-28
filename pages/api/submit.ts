@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: 'Voting is closed' })
   }
 
-  const existing = await getSubmission(ip)
+  const existing = await getSubmission(session.sessionId, ip)
   if (existing) {
     return res.status(409).json({ error: 'You have already submitted a movie this session' })
   }
@@ -53,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   session.movies.push(movie)
   await saveSession(session)
-  await setSubmission(ip, id)
+  await setSubmission(session.sessionId, ip, id)
 
   res.json({ success: true, movie })
 }
