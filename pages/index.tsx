@@ -7,6 +7,7 @@ interface Movie {
   submittedBy: string
   votes: number
   submittedAt: number
+  posterUrl?: string
 }
 
 interface SessionData {
@@ -14,6 +15,12 @@ interface SessionData {
   isOpen: boolean
   hasSubmitted: boolean
   submittedMovieId: string | null
+}
+
+interface PosterModal {
+  poster: string
+  title: string
+  year: string
 }
 
 export default function Home() {
@@ -24,6 +31,8 @@ export default function Home() {
   const [error, setError] = useState('')
   const [votedFor, setVotedFor] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const [fetchingPoster, setFetchingPoster] = useState(false)
+  const [modal, setModal] = useState<PosterModal | null>(null)
 
   const fetchSession = useCallback(async () => {
     const res = await fetch('/api/session')
@@ -38,14 +47,29 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [fetchSession])
 
-  async function submitMovie() {
+  async function handleSubmitClick() {
     if (!input.trim()) return
-    setSubmitting(true)
+    setFetchingPoster(true)
     setError('')
+    try {
+      const res = await fetch(`/api/movie-search?title=${encodeURIComponent(input.trim())}`)
+      const json = await res.json()
+      if (json.poster) {
+        setModal({ poster: json.poster, title: json.title || input.trim(), year: json.year || '' })
+        setFetchingPoster(false)
+        return
+      }
+    } catch {}
+    setFetchingPoster(false)
+    await doSubmit()
+  }
+
+  async function doSubmit(posterUrl?: string) {
+    setSubmitting(true)
     const res = await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: input.trim() }),
+      body: JSON.stringify({ title: input.trim(), posterUrl }),
     })
     const json = await res.json()
     setSubmitting(false)
@@ -74,6 +98,7 @@ export default function Home() {
   }
 
   const maxVotes = data ? Math.max(...data.movies.map(m => m.votes), 1) : 1
+  const busy = submitting || fetchingPoster
 
   return (
     <>
@@ -380,11 +405,11 @@ export default function Home() {
 
         .rank {
           font-family: 'Playfair Display', serif;
-          font-size: 1.3rem;
+          font-size: 1.8rem;
           font-weight: 900;
           font-style: italic;
-          color: rgba(61,43,31,0.15);
-          min-width: 28px;
+          color: rgba(61,43,31,0.35);
+          min-width: 32px;
           text-align: center;
           line-height: 1;
           flex-shrink: 0;
@@ -392,6 +417,15 @@ export default function Home() {
 
         .movie-card.leader .rank {
           color: var(--gold);
+        }
+
+        .movie-poster {
+          width: 38px;
+          height: 56px;
+          object-fit: cover;
+          border-radius: 3px;
+          flex-shrink: 0;
+          box-shadow: 0 2px 6px rgba(26,18,9,0.2);
         }
 
         .movie-info {
@@ -466,15 +500,105 @@ export default function Home() {
           opacity: 0.55;
         }
 
-        footer {
+        /* ── Poster confirmation modal ── */
+        .modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(26,18,9,0.7);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 100;
+          padding: 20px;
+        }
+
+        .modal {
+          background: white;
+          border-radius: 12px;
+          padding: 32px 28px 28px;
+          max-width: 300px;
+          width: 100%;
+          box-shadow: 0 24px 64px rgba(26,18,9,0.45);
           text-align: center;
-          margin-top: 72px;
-          padding-top: 24px;
-          border-top: 1px solid rgba(61,43,31,0.1);
-          font-size: 0.62rem;
-          letter-spacing: 0.18em;
+        }
+
+        .modal-eyebrow {
+          font-size: 0.65rem;
+          letter-spacing: 0.2em;
           text-transform: uppercase;
-          opacity: 0.35;
+          color: var(--brown);
+          opacity: 0.45;
+          margin-bottom: 16px;
+        }
+
+        .modal-poster {
+          width: 150px;
+          height: 222px;
+          object-fit: cover;
+          border-radius: 6px;
+          margin: 0 auto 20px;
+          display: block;
+          box-shadow: 0 6px 24px rgba(26,18,9,0.25);
+        }
+
+        .modal-title {
+          font-family: 'Playfair Display', serif;
+          font-size: 1.05rem;
+          font-weight: 700;
+          margin-bottom: 4px;
+          line-height: 1.3;
+        }
+
+        .modal-year {
+          font-size: 0.68rem;
+          color: var(--brown);
+          opacity: 0.45;
+          letter-spacing: 0.12em;
+          margin-bottom: 24px;
+        }
+
+        .modal-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .btn-confirm {
+          padding: 12px;
+          background: var(--dark);
+          color: var(--cream);
+          border: none;
+          border-radius: 6px;
+          font-family: 'DM Mono', monospace;
+          font-size: 0.75rem;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .btn-confirm:hover {
+          background: var(--brown);
+        }
+
+        .btn-skip {
+          padding: 11px;
+          background: none;
+          color: var(--brown);
+          border: 1.5px solid rgba(61,43,31,0.15);
+          border-radius: 6px;
+          font-family: 'DM Mono', monospace;
+          font-size: 0.7rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          cursor: pointer;
+          opacity: 0.55;
+          transition: opacity 0.2s;
+        }
+
+        .btn-skip:hover {
+          opacity: 1;
         }
 
         @keyframes fadeIn {
@@ -491,11 +615,30 @@ export default function Home() {
         }
       `}</style>
 
+      {modal && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <p className="modal-eyebrow">Is this the right film?</p>
+            <img className="modal-poster" src={modal.poster} alt={modal.title} />
+            <div className="modal-title">{modal.title}</div>
+            {modal.year && <div className="modal-year">{modal.year}</div>}
+            <div className="modal-buttons">
+              <button className="btn-confirm" onClick={() => { setModal(null); doSubmit(modal.poster) }}>
+                That&apos;s the one
+              </button>
+              <button className="btn-skip" onClick={() => { setModal(null); doSubmit() }}>
+                Wrong film, skip poster
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container">
         <header>
           <div className="header-ornament"><span>✦</span></div>
           <h1>Movie <em>Night</em></h1>
-          <p className="subtitle">Cast your vote · Suggest a film</p>
+          <p className="subtitle">Suggest a movie · Cast your vote</p>
         </header>
 
         {data && !data.isOpen && (
@@ -517,16 +660,16 @@ export default function Home() {
                   placeholder="e.g. Legally Blonde..."
                   value={input}
                   onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && submitMovie()}
-                  disabled={submitting || !data?.isOpen}
+                  onKeyDown={e => e.key === 'Enter' && handleSubmitClick()}
+                  disabled={busy || !data?.isOpen}
                   maxLength={100}
                 />
                 <button
                   className="btn-submit"
-                  onClick={submitMovie}
-                  disabled={submitting || !input.trim() || !data?.isOpen}
+                  onClick={handleSubmitClick}
+                  disabled={busy || !input.trim() || !data?.isOpen}
                 >
-                  {submitting ? '...' : 'Submit'}
+                  {fetchingPoster ? '...' : submitting ? '...' : 'Submit'}
                 </button>
               </div>
               {error && <p className="error-msg">⚠ {error}</p>}
@@ -560,6 +703,9 @@ export default function Home() {
                   style={{ width: `${(movie.votes / maxVotes) * 100}%` }}
                 />
                 <span className="rank">{i + 1}</span>
+                {movie.posterUrl && (
+                  <img className="movie-poster" src={movie.posterUrl} alt={movie.title} />
+                )}
                 <div className="movie-info">
                   <div className="movie-title">
                     {i === 0 && movie.votes > 0 ? '🏆 ' : ''}{movie.title}
@@ -583,8 +729,6 @@ export default function Home() {
             ))
           )}
         </div>
-
-        <footer>Movie Night · Live Voting · Updates every 3s</footer>
       </div>
     </>
   )

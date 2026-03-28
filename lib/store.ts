@@ -7,6 +7,7 @@ export interface Movie {
   votes: number
   voters: string[] // session IDs that voted
   submittedAt: number
+  posterUrl?: string
 }
 
 export interface Session {

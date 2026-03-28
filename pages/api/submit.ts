@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).end()
 
   const ip = getIP(req)
-  const { title } = req.body
+  const { title, posterUrl } = req.body
 
   if (!title || typeof title !== 'string' || title.trim().length < 1) {
     return res.status(400).json({ error: 'Movie title is required' })
@@ -49,6 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     votes: 0,
     voters: [],
     submittedAt: Date.now(),
+    posterUrl: typeof posterUrl === 'string' ? posterUrl : undefined,
   }
 
   session.movies.push(movie)
