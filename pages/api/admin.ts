@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getPoll, savePoll, resetPoll, getHostToken } from '../../lib/store'
+import { getPoll, savePoll, resetPoll, deletePoll, getHostToken } from '../../lib/store'
 import { isValidPollId, runWithLock } from '../../lib/api'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -10,10 +10,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!isValidPollId(pollId)) return res.status(400).json({ error: 'Invalid pollId' })
   if (!hostToken || typeof hostToken !== 'string') return res.status(401).json({ error: 'Unauthorized' })
-  if (action !== 'reset' && action !== 'toggle') return res.status(400).json({ error: 'Unknown action' })
+  if (action !== 'reset' && action !== 'toggle' && action !== 'close') return res.status(400).json({ error: 'Unknown action' })
 
   const storedToken = await getHostToken(pollId)
   if (!storedToken || storedToken !== hostToken) return res.status(401).json({ error: 'Unauthorized' })
+
+  if (action === 'close') {
+    await deletePoll(pollId)
+    return res.status(200).json({ success: true, closed: true })
+  }
 
   if (action === 'reset') {
     await runWithLock(pollId, res, async () => {

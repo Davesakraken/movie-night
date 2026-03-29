@@ -85,6 +85,17 @@ export async function setSubmission(pollId: string, ip: string, movieId: string)
   await kv.set(subKey(pollId, ip), movieId, { ex: TTL })
 }
 
+export async function deletePoll(pollId: string): Promise<void> {
+  const subPattern = subKey(pollId, '*')
+  let cursor = '0'
+  do {
+    const [next, keys] = await kv.scan(cursor, { match: subPattern, count: 100 })
+    if (keys.length > 0) await kv.del(...keys)
+    cursor = String(next)
+  } while (cursor !== '0')
+  await kv.del(pollKey(pollId), hostKey(pollId))
+}
+
 export async function resetPoll(pollId: string): Promise<void> {
   const poll: Poll = { pollId, movies: [], isOpen: true, createdAt: Date.now() }
   const pattern = subKey(pollId, '*')

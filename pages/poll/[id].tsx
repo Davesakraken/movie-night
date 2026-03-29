@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
+import { useConfirm } from '../../components/ConfirmModal'
 
 interface Movie {
   id: string
@@ -41,8 +42,9 @@ export default function PollPage() {
   const [lightboxPoster, setLightboxPoster] = useState<{ url: string; title: string } | null>(null)
   const [hostLoading, setHostLoading] = useState(false)
   const [hostStatus, setHostStatus] = useState('')
-  const [copied, setCopied] = useState<'share' | 'host' | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const { confirm, dialog: confirmDialog } = useConfirm()
 
   const fetchSession = useCallback(async () => {
     if (!pollId) return
@@ -125,6 +127,10 @@ export default function PollPage() {
     if (!res.ok) {
       setHostStatus('Error: ' + json.error)
     } else {
+      if (json.closed) {
+        router.push('/')
+        return
+      }
       setHostStatus(json.message || 'Done')
       if (json.isOpen !== undefined) {
         setData(prev => prev ? { ...prev, isOpen: json.isOpen } : prev)
@@ -134,7 +140,7 @@ export default function PollPage() {
     }
   }
 
-  function copyToClipboard(text: string, which: 'share' | 'host') {
+  function copyToClipboard(text: string, which: string) {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(which)
       setTimeout(() => setCopied(null), 2000)
@@ -314,11 +320,86 @@ export default function PollPage() {
           margin-bottom: 14px;
         }
 
-        .host-share {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
+        .host-panel-header-right {
+          display: flex;
+          align-items: center;
           gap: 8px;
         }
+
+        .btn-close-poll-icon {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          line-height: 1;
+          padding: 2px;
+          color: #e74c3c;
+          opacity: 0.5;
+          transition: opacity 0.15s;
+          display: flex;
+          align-items: center;
+        }
+        .btn-close-poll-icon:hover:not(:disabled) { opacity: 1; }
+        .btn-close-poll-icon:disabled { opacity: 0.2; cursor: not-allowed; }
+
+        .host-links {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .host-link-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .link-row-label {
+          font-family: 'DM Mono', monospace;
+          font-size: 0.65rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: rgba(245,239,224,0.4);
+          width: 34px;
+          flex-shrink: 0;
+        }
+
+        .link-input-wrapper {
+          display: flex;
+          align-items: center;
+          flex: 1;
+          background: rgba(0,0,0,0.35);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 6px;
+          overflow: hidden;
+        }
+
+        .link-input {
+          flex: 1;
+          background: transparent;
+          -webkit-appearance: none;
+          border: none;
+          outline: none;
+          padding: 8px 10px;
+          font-family: 'DM Mono', monospace;
+          font-size: 0.65rem;
+          color: rgba(245,239,224,0.55);
+          min-width: 0;
+          cursor: default;
+        }
+
+        .btn-copy-icon {
+          flex-shrink: 0;
+          background: transparent;
+          border: none;
+          border-left: 1px solid rgba(255,255,255,0.08);
+          padding: 8px 10px;
+          cursor: pointer;
+          color: rgba(245,239,224,0.4);
+          display: flex;
+          align-items: center;
+          transition: color 0.15s;
+        }
+        .btn-copy-icon:hover { color: var(--gold); }
 
         .btn-host-action {
           padding: 10px 14px;
@@ -339,8 +420,6 @@ export default function PollPage() {
 
         .btn-toggle { background: rgba(255,255,255,0.1); color: var(--cream); }
         .btn-reset { background: rgba(192,57,43,0.7); color: white; }
-        .btn-copy-share { background: rgba(201,149,42,0.25); color: var(--gold); }
-        .btn-copy-host { background: rgba(255,255,255,0.07); color: rgba(245,239,224,0.6); }
 
         .host-status {
           margin-top: 10px;
@@ -622,7 +701,6 @@ export default function PollPage() {
           .btn-submit { width: 100%; text-align: center; }
           h1 { font-size: 2.6rem; }
           .host-actions { grid-template-columns: 1fr; }
-          .host-share { grid-template-columns: 1fr; }
         }
 
         .lightbox-backdrop {
@@ -647,6 +725,8 @@ export default function PollPage() {
           cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;
         }
       `}</style>
+
+      {confirmDialog}
 
       {modal && (
         <div className="modal-backdrop">
@@ -689,11 +769,32 @@ export default function PollPage() {
           <div className="host-panel">
             <div className="host-panel-header">
               <span className="host-panel-title">Host Panel</span>
-              {data && (
-                <span className={`state-badge ${data.isOpen ? 'badge-open' : 'badge-closed'}`}>
-                  ● {data.isOpen ? 'Voting Open' : 'Voting Closed'}
-                </span>
-              )}
+              <div className="host-panel-header-right">
+                {data && (
+                  <span className={`state-badge ${data.isOpen ? 'badge-open' : 'badge-closed'}`}>
+                    ● {data.isOpen ? 'Voting Open' : 'Voting Closed'}
+                  </span>
+                )}
+                <button
+                  className="btn-close-poll-icon"
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Close Poll',
+                      message: 'Permanently close this poll and delete all data? This cannot be undone.',
+                      confirmLabel: 'Close Poll',
+                      danger: true,
+                    })
+                    if (ok) hostAction('close')
+                  }}
+                  disabled={hostLoading}
+                  title="Close poll"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                    <line x1="12" y1="2" x2="12" y2="12"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div className="host-actions">
@@ -702,14 +803,18 @@ export default function PollPage() {
                 onClick={() => hostAction('toggle')}
                 disabled={hostLoading}
               >
-                {hostLoading ? '...' : data?.isOpen ? 'Close Voting' : 'Open Voting'}
+                {hostLoading ? '...' : data?.isOpen ? 'Pause Voting' : 'Open Voting'}
               </button>
               <button
                 className="btn-host-action btn-reset"
-                onClick={() => {
-                  if (confirm('Reset all movies and votes? This cannot be undone.')) {
-                    hostAction('reset')
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Reset Poll',
+                    message: 'Reset all movies and votes? This cannot be undone.',
+                    confirmLabel: 'Reset',
+                    danger: true,
+                  })
+                  if (ok) hostAction('reset')
                 }}
                 disabled={hostLoading}
               >
@@ -717,19 +822,31 @@ export default function PollPage() {
               </button>
             </div>
 
-            <div className="host-share">
-              <button
-                className="btn-host-action btn-copy-share"
-                onClick={() => copyToClipboard(shareUrl, 'share')}
-              >
-                {copied === 'share' ? '✓ Copied!' : 'Copy Guest Link'}
-              </button>
-              <button
-                className="btn-host-action btn-copy-host"
-                onClick={() => copyToClipboard(hostUrl, 'host')}
-              >
-                {copied === 'host' ? '✓ Copied!' : 'Copy My Host Link'}
-              </button>
+            <div className="host-links">
+              <div className="host-link-row">
+                <span className="link-row-label">Guest</span>
+                <div className="link-input-wrapper">
+                  <input type="text" readOnly value={shareUrl} className="link-input" />
+                  <button className="btn-copy-icon" onClick={() => copyToClipboard(shareUrl, 'share')} title="Copy guest link">
+                    {copied === 'share'
+                      ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    }
+                  </button>
+                </div>
+              </div>
+              <div className="host-link-row">
+                <span className="link-row-label">Host</span>
+                <div className="link-input-wrapper">
+                  <input type="text" readOnly value={hostUrl} className="link-input" />
+                  <button className="btn-copy-icon" onClick={() => copyToClipboard(hostUrl, 'host')} title="Copy host link">
+                    {copied === 'host'
+                      ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    }
+                  </button>
+                </div>
+              </div>
             </div>
 
             {hostStatus && <p className="host-status">{hostStatus}</p>}
