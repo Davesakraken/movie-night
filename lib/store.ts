@@ -24,17 +24,35 @@ export interface Poll {
 }
 
 const TTL = 60 * 60 * 24 // 24 hours
+const LOCK_TTL = 5 // seconds
+
+// Atomically deletes a key only if its value matches the expected token (prevents releasing another owner's lock)
+const CAS_DELETE_SCRIPT =
+  `if redis.call("get",KEYS[1])==ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end`
 
 function pollKey(pollId: string) { return `poll:${pollId}` }
 function hostKey(pollId: string) { return `poll:${pollId}:host` }
 function subKey(pollId: string, ip: string) { return `poll:${pollId}:sub:${ip}` }
+function lockKey(pollId: string) { return `poll:${pollId}:lock` }
 
-export function generatePollId(): string {
-  return randomBytes(5).toString('hex')
+function generateToken(bytes: number): string {
+  return randomBytes(bytes).toString('hex')
 }
 
-export function generateHostToken(): string {
-  return randomBytes(16).toString('hex')
+export function generatePollId(): string { return generateToken(5) }
+export function generateHostToken(): string { return generateToken(16) }
+export function generateMovieId(): string { return generateToken(6) }
+
+export async function withPollLock<T>(pollId: string, fn: () => Promise<T>): Promise<T | null> {
+  const key = lockKey(pollId)
+  const token = generateToken(8)
+  const acquired = await kv.set(key, token, { nx: true, ex: LOCK_TTL })
+  if (!acquired) return null
+  try {
+    return await fn()
+  } finally {
+    await kv.eval(CAS_DELETE_SCRIPT, [key], [token])
+  }
 }
 
 export async function createPoll(): Promise<{ pollId: string; hostToken: string }> {
@@ -70,8 +88,12 @@ export async function setSubmission(pollId: string, ip: string, movieId: string)
 
 export async function resetPoll(pollId: string): Promise<void> {
   const poll: Poll = { pollId, movies: [], isOpen: true, createdAt: Date.now() }
-  // Delete all submission keys for this poll
-  const keys = await kv.keys(subKey(pollId, '*'))
-  if (keys.length > 0) await kv.del(...keys)
+  const pattern = subKey(pollId, '*')
+  let cursor = '0'
+  do {
+    const [next, keys] = await kv.scan(cursor, { match: pattern, count: 100 })
+    if (keys.length > 0) await kv.del(...keys)
+    cursor = String(next)
+  } while (cursor !== '0')
   await kv.set(pollKey(pollId), poll, { ex: TTL })
 }
