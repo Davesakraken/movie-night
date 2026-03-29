@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getSession, getSubmission } from '../../lib/store'
+import { getPoll, getSubmission, getHostToken } from '../../lib/store'
 
 function getIP(req: NextApiRequest): string {
   const forwarded = req.headers['x-forwarded-for']
@@ -10,17 +10,31 @@ function getIP(req: NextApiRequest): string {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).end()
 
-  const ip = getIP(req)
-  const session = await getSession()
-  const hasSubmitted = await getSubmission(session.sessionId, ip)
+  const { pollId, hostToken } = req.query
 
-  // Sort movies by votes desc
-  const sorted = [...session.movies].sort((a, b) => b.votes - a.votes)
+  if (!pollId || typeof pollId !== 'string' || !/^[0-9a-f]{10}$/.test(pollId)) {
+    return res.status(400).json({ error: 'Invalid pollId' })
+  }
+
+  const poll = await getPoll(pollId)
+  if (!poll) return res.status(404).json({ error: 'Poll not found' })
+
+  const ip = getIP(req)
+  const hasSubmitted = await getSubmission(pollId, ip)
+
+  let isHost = false
+  if (hostToken && typeof hostToken === 'string') {
+    const storedToken = await getHostToken(pollId)
+    isHost = storedToken === hostToken
+  }
+
+  const sorted = [...poll.movies].sort((a, b) => b.votes - a.votes)
 
   res.json({
     movies: sorted,
-    isOpen: session.isOpen,
+    isOpen: poll.isOpen,
     hasSubmitted: !!hasSubmitted,
     submittedMovieId: hasSubmitted || null,
+    isHost,
   })
 }
