@@ -14,8 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const ip = getIP(req)
   const { pollId, title, posterUrl } = req.body
 
-  if (!pollId || typeof pollId !== 'string') {
-    return res.status(400).json({ error: 'pollId is required' })
+  if (!pollId || typeof pollId !== 'string' || !/^[0-9a-f]{10}$/.test(pollId)) {
+    return res.status(400).json({ error: 'Invalid pollId' })
   }
 
   if (!title || typeof title !== 'string' || title.trim().length < 1) {
@@ -45,6 +45,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(409).json({ error: 'This movie has already been suggested' })
   }
 
+  const safePosterUrl =
+    typeof posterUrl === 'string' && /^https?:\/\//i.test(posterUrl)
+      ? posterUrl
+      : undefined
+
   const id = randomBytes(6).toString('hex')
   const movie = {
     id,
@@ -53,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     votes: 0,
     voters: [],
     submittedAt: Date.now(),
-    posterUrl: typeof posterUrl === 'string' ? posterUrl : undefined,
+    posterUrl: safePosterUrl,
   }
 
   poll.movies.push(movie)
