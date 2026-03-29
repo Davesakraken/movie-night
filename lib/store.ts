@@ -1,5 +1,10 @@
-import { kv } from '@vercel/kv'
+import { Redis } from '@upstash/redis'
 import { randomBytes } from 'crypto'
+
+const kv = new Redis({
+  url: process.env.KV_REST_API_URL!,
+  token: process.env.KV_REST_API_TOKEN!,
+})
 
 export interface Movie {
   id: string
@@ -66,7 +71,7 @@ export async function setSubmission(pollId: string, ip: string, movieId: string)
 export async function resetPoll(pollId: string): Promise<void> {
   const poll: Poll = { pollId, movies: [], isOpen: true, createdAt: Date.now() }
   // Delete all submission keys for this poll
-  const keys = await kv.keys(`poll:${pollId}:sub:*`)
+  const keys = await kv.keys(subKey(pollId, '*'))
   if (keys.length > 0) await kv.del(...keys)
   await kv.set(pollKey(pollId), poll, { ex: TTL })
 }

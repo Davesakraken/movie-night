@@ -4,7 +4,17 @@
       "Read(///wsl.localhost/Ubuntu/home/dave/**)",
       "Bash(ls \"\\\\\\\\wsl.localhost\\\\Ubuntu\\\\home\\\\dave\\\\projects\\\\movie-night-project\")",
       "Read(//mnt/wsl/Ubuntu/home/dave/projects/**)",
-      "Bash(wsl ls:*)"
+      "Bash(wsl ls:*)",
+      "Bash(git -C \"\\\\wsl.localhost\\\\Ubuntu\\\\home\\\\dave\\\\projects\\\\movie-night-project\" status)",
+      "Bash(npm run:*)",
+      "Bash(ls -la /home/dave/projects/movie-night-project/.env*)",
+      "Bash(node -e \"const pkg = require\\(''/home/dave/projects/movie-night-project/node_modules/@vercel/kv/package.json''\\); console.log\\(pkg.version, pkg.dependencies\\)\")",
+      "Bash(node -e \"const pkg = require\\(''/home/dave/projects/movie-night-project/node_modules/@upstash/redis/package.json''\\); console.log\\(''version:'', pkg.version\\)\")",
+      "Bash(node -e \":*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -n \"randomBytes\\\\|generatePollId\\\\|generateHostToken\\\\|crypto\\\\|nanoid\\\\|uuid\\\\|Redis\\\\|fromEnv\\\\|KV_REST\" /home/dave/projects/movie-night-project/pages/api/*.ts)"
     ],
     "additionalDirectories": [
       "\\home\\dave\\projects\\movie-night-project\\pages",
