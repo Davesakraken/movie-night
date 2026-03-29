@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getSession, saveSession, getSubmission, setSubmission } from '../../lib/store'
+import { getPoll, savePoll, getSubmission, setSubmission } from '../../lib/store'
 import { randomBytes } from 'crypto'
 
 function getIP(req: NextApiRequest): string {
@@ -12,7 +12,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).end()
 
   const ip = getIP(req)
-  const { title, posterUrl } = req.body
+  const { pollId, title, posterUrl } = req.body
+
+  if (!pollId || typeof pollId !== 'string') {
+    return res.status(400).json({ error: 'pollId is required' })
+  }
 
   if (!title || typeof title !== 'string' || title.trim().length < 1) {
     return res.status(400).json({ error: 'Movie title is required' })
@@ -22,19 +26,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Title too long' })
   }
 
-  const session = await getSession()
+  const poll = await getPoll(pollId)
+  if (!poll) return res.status(404).json({ error: 'Poll not found' })
 
-  if (!session.isOpen) {
+  if (!poll.isOpen) {
     return res.status(403).json({ error: 'Voting is closed' })
   }
 
-  const existing = await getSubmission(session.sessionId, ip)
+  const existing = await getSubmission(pollId, ip)
   if (existing) {
     return res.status(409).json({ error: 'You have already submitted a movie this session' })
   }
 
-  // Check for duplicate title (case-insensitive)
-  const duplicate = session.movies.find(
+  const duplicate = poll.movies.find(
     m => m.title.toLowerCase() === title.trim().toLowerCase()
   )
   if (duplicate) {
@@ -45,16 +49,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const movie = {
     id,
     title: title.trim(),
-    submittedBy: ip.slice(-4), // just last 4 chars of IP for anonymity
+    submittedBy: ip.slice(-4),
     votes: 0,
     voters: [],
     submittedAt: Date.now(),
     posterUrl: typeof posterUrl === 'string' ? posterUrl : undefined,
   }
 
-  session.movies.push(movie)
-  await saveSession(session)
-  await setSubmission(session.sessionId, ip, id)
+  poll.movies.push(movie)
+  await savePoll(poll)
+  await setSubmission(pollId, ip, id)
 
   res.json({ success: true, movie })
 }
