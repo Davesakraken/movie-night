@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getPoll, savePoll } from '../../lib/store'
-import { getIP, runWithLock } from '../../lib/api'
+import { getIP, isValidPollId, runWithLock } from '../../lib/api'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -8,9 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const ip = getIP(req)
   const { pollId, movieId } = req.body
 
-  if (!pollId || typeof pollId !== 'string' || !/^[0-9a-f]{10}$/.test(pollId)) {
-    return res.status(400).json({ error: 'Invalid pollId' })
-  }
+  if (!isValidPollId(pollId)) return res.status(400).json({ error: 'Invalid pollId' })
   if (!movieId) return res.status(400).json({ error: 'movieId required' })
 
   await runWithLock(pollId, res, async () => {
@@ -23,17 +21,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (movie.voters.includes(ip)) {
       movie.voters = movie.voters.filter(v => v !== ip)
-      movie.votes = Math.max(0, movie.votes - 1)
     } else {
       for (const m of poll.movies) {
-        if (m.voters.includes(ip)) {
+        if (m !== movie && m.voters.includes(ip)) {
           m.voters = m.voters.filter(v => v !== ip)
-          m.votes = Math.max(0, m.votes - 1)
+          m.votes = m.voters.length
         }
       }
       movie.voters.push(ip)
-      movie.votes += 1
     }
+    movie.votes = movie.voters.length
 
     await savePoll(poll)
     return { status: 200, body: { success: true, votes: movie.votes } }

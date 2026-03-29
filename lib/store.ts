@@ -26,7 +26,6 @@ export interface Poll {
 const TTL = 60 * 60 * 24 // 24 hours
 const LOCK_TTL = 5 // seconds
 
-// Atomically deletes a key only if its value matches the expected token (prevents releasing another owner's lock)
 const CAS_DELETE_SCRIPT =
   `if redis.call("get",KEYS[1])==ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end`
 

@@ -3,6 +3,10 @@ import { withPollLock } from './store'
 
 export type ApiResult = { status: number; body: Record<string, unknown> }
 
+export function isValidPollId(pollId: unknown): pollId is string {
+  return typeof pollId === 'string' && /^[0-9a-f]{10}$/.test(pollId)
+}
+
 export function getIP(req: NextApiRequest): string {
   const forwarded = req.headers['x-forwarded-for']
   if (typeof forwarded === 'string') return forwarded.split(',')[0].trim()

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getPoll, savePoll, getSubmission, setSubmission, generateMovieId } from '../../lib/store'
-import { getIP, runWithLock } from '../../lib/api'
+import { getIP, isValidPollId, runWithLock } from '../../lib/api'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -8,9 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const ip = getIP(req)
   const { pollId, title, posterUrl } = req.body
 
-  if (!pollId || typeof pollId !== 'string' || !/^[0-9a-f]{10}$/.test(pollId)) {
-    return res.status(400).json({ error: 'Invalid pollId' })
-  }
+  if (!isValidPollId(pollId)) return res.status(400).json({ error: 'Invalid pollId' })
   if (!title || typeof title !== 'string' || title.trim().length < 1) {
     return res.status(400).json({ error: 'Movie title is required' })
   }
@@ -24,11 +22,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : undefined
 
   await runWithLock(pollId, res, async () => {
-    const poll = await getPoll(pollId)
+    const [poll, existing] = await Promise.all([getPoll(pollId), getSubmission(pollId, ip)])
     if (!poll) return { status: 404, body: { error: 'Poll not found' } }
     if (!poll.isOpen) return { status: 403, body: { error: 'Voting is closed' } }
-
-    const existing = await getSubmission(pollId, ip)
     if (existing) return { status: 409, body: { error: 'You have already submitted a movie this session' } }
 
     const duplicate = poll.movies.find(
