@@ -33,6 +33,7 @@ export default function Home() {
   const [flash, setFlash] = useState<string | null>(null)
   const [fetchingPoster, setFetchingPoster] = useState(false)
   const [modal, setModal] = useState<PosterModal | null>(null)
+  const [lightboxPoster, setLightboxPoster] = useState<{url: string, title: string} | null>(null)
 
   const fetchSession = useCallback(async () => {
     const res = await fetch('/api/session')
@@ -405,11 +406,11 @@ export default function Home() {
 
         .rank {
           font-family: 'Playfair Display', serif;
-          font-size: 1.8rem;
+          font-size: 2.8rem;
           font-weight: 900;
           font-style: italic;
-          color: rgba(61,43,31,0.35);
-          min-width: 32px;
+          color: rgba(61,43,31,0.55);
+          min-width: 42px;
           text-align: center;
           line-height: 1;
           flex-shrink: 0;
@@ -613,6 +614,57 @@ export default function Home() {
           .btn-submit { width: 100%; text-align: center; }
           h1 { font-size: 2.6rem; }
         }
+
+        .lightbox-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(26,18,9,0.85);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+        }
+        .lightbox-content {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          max-width: 340px;
+          width: 100%;
+        }
+        .lightbox-img {
+          width: 100%;
+          max-width: 300px;
+          height: auto;
+          border-radius: 8px;
+          box-shadow: 0 12px 40px rgba(26,18,9,0.5);
+          display: block;
+        }
+        .lightbox-title {
+          color: var(--cream);
+          font-family: 'Playfair Display', serif;
+          font-size: 1.1rem;
+          text-align: center;
+        }
+        .lightbox-close {
+          position: absolute;
+          top: -14px;
+          right: -14px;
+          background: var(--red);
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          font-size: 0.9rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+        }
       `}</style>
 
       {modal && (
@@ -630,6 +682,16 @@ export default function Home() {
                 Wrong film, skip poster
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {lightboxPoster && (
+        <div className="lightbox-backdrop" onClick={() => setLightboxPoster(null)}>
+          <div className="lightbox-content" onClick={e => e.stopPropagation()}>
+            <img src={lightboxPoster.url} alt={lightboxPoster.title} className="lightbox-img" />
+            <div className="lightbox-title">{lightboxPoster.title}</div>
+            <button className="lightbox-close" onClick={() => setLightboxPoster(null)}>✕</button>
           </div>
         </div>
       )}
@@ -704,7 +766,13 @@ export default function Home() {
                 />
                 <span className="rank">{i + 1}</span>
                 {movie.posterUrl && (
-                  <img className="movie-poster" src={movie.posterUrl} alt={movie.title} />
+                  <img
+                    className="movie-poster"
+                    src={movie.posterUrl}
+                    alt={movie.title}
+                    onClick={() => setLightboxPoster({ url: movie.posterUrl!, title: movie.title })}
+                    style={{ cursor: 'pointer' }}
+                  />
                 )}
                 <div className="movie-info">
                   <div className="movie-title">
