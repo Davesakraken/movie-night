@@ -5,8 +5,6 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogFooter,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 
@@ -43,7 +41,7 @@ function ConfirmDialog({
   return (
     <AlertDialog open onOpenChange={(open) => { if (!open) onCancel() }}>
       <AlertDialogContent
-        className="max-w-[380px] rounded-xl border border-white/10 bg-[#1e1509] p-7 shadow-[0_24px_60px_rgba(26,18,9,0.6)]"
+        className="max-w-[380px] rounded-xl border border-white/10 bg-dark p-7 ring-0 shadow-[0_24px_60px_rgba(26,18,9,0.6)]"
       >
         <AlertDialogTitle
           className="mb-2.5 text-[1.15rem] font-bold leading-snug text-gold"
@@ -56,18 +54,19 @@ function ConfirmDialog({
           {message}
         </AlertDialogDescription>
 
-        <AlertDialogFooter className="flex justify-end gap-2.5">
-          <AlertDialogCancel
+        {/* Plain div — AlertDialogFooter brings bg-muted/50 border-t that fight the dark theme */}
+        <div className="flex justify-end gap-2.5">
+          <button
             onClick={onCancel}
-            className="rounded-md border-none bg-white/[0.07] px-4 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] text-cream/50 transition-all hover:opacity-80 hover:-translate-y-px"
+            className="rounded-md bg-white/[0.07] px-4 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] text-cream/60 transition-[opacity,transform] duration-100 hover:opacity-80 hover:-translate-y-px"
           >
             {cancelLabel}
-          </AlertDialogCancel>
+          </button>
           <AlertDialogAction
             ref={confirmRef}
             onClick={onConfirm}
             className={cn(
-              'rounded-md border-none px-4 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] transition-all hover:opacity-80 hover:-translate-y-px',
+              'h-auto rounded-md border-none px-4 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] transition-[opacity,transform] duration-100 hover:opacity-80 hover:-translate-y-px',
               danger
                 ? 'bg-brand-red text-white'
                 : 'bg-white/[0.12] text-cream',
@@ -75,7 +74,7 @@ function ConfirmDialog({
           >
             {confirmLabel}
           </AlertDialogAction>
-        </AlertDialogFooter>
+        </div>
       </AlertDialogContent>
     </AlertDialog>
   )
