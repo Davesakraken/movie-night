@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { cn } from '@/lib/utils'
+import { Ornament } from '@/components/Ornament'
 
 export default function Home() {
   const router = useRouter()
@@ -31,12 +32,7 @@ export default function Home() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="w-full max-w-[480px] px-6 py-12 text-center">
 
-          {/* Header ornament */}
-          <div className="mb-5 flex items-center justify-center gap-2.5">
-            <span className="h-px w-12 bg-brown opacity-35" />
-            <span className="text-lg opacity-55">✦</span>
-            <span className="h-px w-12 bg-brown opacity-35" />
-          </div>
+          <Ornament className="mb-5" />
 
           <h1
             className="mb-3.5 text-[clamp(2.6rem,10vw,4.2rem)] font-black leading-none tracking-tight text-dark"
@@ -83,12 +79,7 @@ export default function Home() {
             Polls expire after 24 hours.
           </p>
 
-          {/* Footer ornament */}
-          <div className="mt-14 flex items-center justify-center gap-2.5 opacity-20">
-            <span className="h-px w-8 bg-brown" />
-            <span>✦</span>
-            <span className="h-px w-8 bg-brown" />
-          </div>
+          <Ornament className="mt-14 opacity-20" />
 
         </div>
       </div>

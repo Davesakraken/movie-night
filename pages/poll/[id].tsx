@@ -4,6 +4,9 @@ import { useRouter } from 'next/router'
 import { useConfirm } from '../../components/ConfirmModal'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { Ornament } from '@/components/Ornament'
+import { MovieCard } from '@/components/MovieCard'
+import { CopyLinkRow } from '@/components/CopyLinkRow'
 
 interface Movie {
   id: string
@@ -254,11 +257,7 @@ export default function PollPage() {
 
         {/* ── Page header ── */}
         <header className="mb-13 text-center">
-          <div className="mb-4.5 flex items-center justify-center gap-2.5">
-            <span className="h-px w-12 bg-brown opacity-35" />
-            <span className="text-[1.1rem] opacity-55">✦</span>
-            <span className="h-px w-12 bg-brown opacity-35" />
-          </div>
+          <Ornament className="mb-4.5" />
           <h1
             className="text-[clamp(2.6rem,8vw,4.2rem)] font-black leading-none tracking-tight text-dark"
             style={{ fontFamily: playfair }}
@@ -336,31 +335,8 @@ export default function PollPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              {[{ label: 'Guest', url: shareUrl, key: 'share' }, { label: 'Host', url: hostUrl, key: 'host' }].map(({ label, url, key }) => (
-                <div key={key} className="flex items-center gap-2">
-                  <span className="w-[34px] shrink-0 font-mono text-[0.65rem] uppercase tracking-[0.08em] text-cream/40">
-                    {label}
-                  </span>
-                  <div className="flex flex-1 items-center overflow-hidden rounded-md border border-white/[0.08] bg-black/35">
-                    <input
-                      type="text"
-                      readOnly
-                      value={url}
-                      className="min-w-0 flex-1 cursor-default border-none bg-transparent px-2.5 py-2 font-mono text-[0.65rem] text-cream/55 outline-none"
-                    />
-                    <button
-                      className="shrink-0 border-l border-white/[0.08] px-2.5 py-2 text-cream/40 transition-colors hover:text-gold"
-                      onClick={() => copyToClipboard(url, key)}
-                      title={`Copy ${label.toLowerCase()} link`}
-                    >
-                      {copied === key
-                        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      }
-                    </button>
-                  </div>
-                </div>
-              ))}
+              <CopyLinkRow label="Guest" url={shareUrl} copied={copied === 'share'} onCopy={() => copyToClipboard(shareUrl, 'share')} />
+              <CopyLinkRow label="Host"  url={hostUrl}  copied={copied === 'host'}  onCopy={() => copyToClipboard(hostUrl, 'host')} />
             </div>
 
             {hostStatus && (
@@ -404,7 +380,7 @@ export default function PollPage() {
                   className="flex-1 border-brown/[0.18] bg-cream font-mono text-[0.85rem] text-dark placeholder:opacity-35 focus-visible:border-gold focus-visible:ring-gold/12"
                 />
                 <button
-                  className="whitespace-nowrap rounded-md bg-brand-red px-5 py-3 font-mono text-[0.78rem] uppercase tracking-[0.1em] text-white transition-all hover:bg-[#a93226] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(192,57,43,0.3)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 max-sm:w-full"
+                  className="h-8 whitespace-nowrap rounded-md bg-brand-red px-5 font-mono text-[0.78rem] uppercase tracking-[0.1em] text-white transition-all hover:bg-[#a93226] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(192,57,43,0.3)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 max-sm:h-auto max-sm:w-full max-sm:py-3"
                   onClick={handleSubmitClick}
                   disabled={busy || !input.trim() || !data?.isOpen}
                 >
@@ -417,12 +393,7 @@ export default function PollPage() {
           )}
         </div>
 
-        {/* ── Divider ── */}
-        <div className="my-9 flex items-center gap-3.5">
-          <span className="h-px flex-1 bg-brown opacity-20" />
-          <span className="text-[0.9rem] opacity-40">✦</span>
-          <span className="h-px flex-1 bg-brown opacity-20" />
-        </div>
+        <Ornament variant="fill" />
 
         {/* ── The Contenders ── */}
         <div>
@@ -441,82 +412,23 @@ export default function PollPage() {
               No films yet — be the first to suggest one!
             </div>
           ) : (
-            data.movies.map((movie, i) => {
-              const isLeader = i === 0 && movie.votes > 0
-              const isVoted = votedFor === movie.id
-              const votePct = (movie.votes / maxVotes) * 100
-
-              return (
-                <div
-                  key={movie.id}
-                  className={cn(
-                    'animate-[fadeIn_0.3s_ease_both] relative mb-2.5 flex items-center gap-3.5 overflow-hidden rounded-lg border border-brown/10 bg-white px-4 py-3.5',
-                    'shadow-[0_1px_6px_rgba(26,18,9,0.14)] transition-all duration-200 hover:shadow-[0_6px_20px_rgba(26,18,9,0.14)] hover:-translate-y-0.5',
-                    isLeader && 'border-gold/50 bg-gradient-to-br from-white via-white to-gold/[0.04]',
-                  )}
-                  style={{ animationDelay: `${i * 0.05}s` }}
-                >
-                  {/* Vote bar */}
-                  <div
-                    className="absolute bottom-0 left-0 h-[3px] rounded-[0_2px_0_6px] bg-gradient-to-r from-gold to-brand-red transition-[width] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
-                    style={{ width: `${votePct}%` }}
-                  />
-
-                  {/* Rank */}
-                  <span
-                    className={cn(
-                      'w-[42px] shrink-0 text-center text-[2.8rem] font-black italic leading-none',
-                      isLeader ? 'text-gold' : 'text-brown/55',
-                    )}
-                    style={{ fontFamily: playfair }}
-                  >
-                    {i + 1}
-                  </span>
-
-                  {/* Poster thumbnail */}
-                  {movie.posterUrl && (
-                    <img
-                      className="h-14 w-[38px] shrink-0 cursor-pointer rounded-sm object-cover shadow-[0_2px_6px_rgba(26,18,9,0.2)]"
-                      src={movie.posterUrl}
-                      alt={movie.title}
-                      onClick={() => setLightboxPoster({ url: movie.posterUrl!, title: movie.title })}
-                    />
-                  )}
-
-                  {/* Movie info */}
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className="truncate text-[1rem] font-bold leading-snug"
-                      style={{ fontFamily: playfair }}
-                    >
-                      {isLeader ? '🏆 ' : ''}{movie.title}
-                    </div>
-                    <div className="mt-0.5 text-[0.67rem] tracking-[0.06em] text-brown opacity-45">
-                      {movie.votes === 1 ? '1 vote' : `${movie.votes} votes`}
-                    </div>
-                  </div>
-
-                  {/* Vote button */}
-                  <button
-                    className={cn(
-                      'flex shrink-0 min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-lg border px-3.5 py-2.5 font-mono transition-all duration-150',
-                      'disabled:cursor-not-allowed disabled:opacity-35',
-                      isVoted
-                        ? 'border-dark bg-dark text-cream shadow-[0_2px_8px_rgba(26,18,9,0.25)]'
-                        : 'border-brown/15 bg-transparent hover:border-gold hover:bg-gold/[0.07] hover:-translate-y-px',
-                    )}
-                    onClick={() => vote(movie.id)}
-                    disabled={!!voting || !data.isOpen}
-                    title={isVoted ? 'Remove vote' : 'Vote for this'}
-                  >
-                    <span className="text-[1.05rem] font-medium leading-none">
-                      {voting === movie.id ? '…' : isVoted ? '✓' : '▲'}
-                    </span>
-                    <span className="text-[0.58rem] uppercase tracking-[0.14em] opacity-55">Vote</span>
-                  </button>
-                </div>
-              )
-            })
+            data.movies.map((movie, i) => (
+              <MovieCard
+                key={movie.id}
+                rank={i + 1}
+                title={movie.title}
+                votes={movie.votes}
+                maxVotes={maxVotes}
+                posterUrl={movie.posterUrl}
+                isLeader={i === 0 && movie.votes > 0}
+                isVoted={votedFor === movie.id}
+                isVoting={voting === movie.id}
+                canVote={data.isOpen}
+                animationDelay={i * 0.05}
+                onVote={() => vote(movie.id)}
+                onPosterClick={movie.posterUrl ? () => setLightboxPoster({ url: movie.posterUrl!, title: movie.title }) : undefined}
+              />
+            ))
           )}
         </div>
       </div>
