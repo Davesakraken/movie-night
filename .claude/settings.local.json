@@ -14,7 +14,13 @@
       "Bash(npm uninstall:*)",
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(grep -n \"randomBytes\\\\|generatePollId\\\\|generateHostToken\\\\|crypto\\\\|nanoid\\\\|uuid\\\\|Redis\\\\|fromEnv\\\\|KV_REST\" /home/dave/projects/movie-night-project/pages/api/*.ts)"
+      "Bash(grep -n \"randomBytes\\\\|generatePollId\\\\|generateHostToken\\\\|crypto\\\\|nanoid\\\\|uuid\\\\|Redis\\\\|fromEnv\\\\|KV_REST\" /home/dave/projects/movie-night-project/pages/api/*.ts)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(./node_modules/.bin/tailwindcss init:*)",
+      "Bash(ls node_modules/.bin/tail*)",
+      "Bash(npm ls:*)",
+      "Bash(npx shadcn@latest init --help)",
+      "Bash(npx shadcn@latest init -d)"
     ],
     "additionalDirectories": [
       "\\home\\dave\\projects\\movie-night-project\\pages",
