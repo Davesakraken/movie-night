@@ -5,8 +5,17 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+    --font-heading: "Playfair Display", serif;
+    --font-sans: "DM Mono", monospace;
+    --font-mono: "DM Mono", monospace;
+
+    /* Project palette */
+    --color-cream: #f5efe0;
+    --color-parchment: #ede3cc;
+    --color-dark: #1a1209;
+    --color-brand-red: #c0392b;
+    --color-gold: #c9952a;
+    --color-brown: #3d2b1f;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -119,11 +128,21 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
   body {
-    @apply bg-background text-foreground;
-    }
-  html {
-    @apply font-sans;
-    }
+    @apply bg-cream text-dark;
+    font-family: var(--font-dm-mono, "DM Mono", monospace);
+    background-image:
+      radial-gradient(ellipse at 15% 0%, rgba(201, 149, 42, 0.15) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 100%, rgba(192, 57, 43, 0.1) 0%, transparent 55%);
+    min-height: 100vh;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

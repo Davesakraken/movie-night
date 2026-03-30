@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useConfirm } from '../../components/ConfirmModal'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
 interface Movie {
   id: string
@@ -25,6 +27,8 @@ interface PosterModal {
   title: string
   year: string
 }
+
+const playfair = 'var(--font-playfair, "Playfair Display", serif)'
 
 export default function PollPage() {
   const router = useRouter()
@@ -127,10 +131,7 @@ export default function PollPage() {
     if (!res.ok) {
       setHostStatus('Error: ' + json.error)
     } else {
-      if (json.closed) {
-        router.push('/')
-        return
-      }
+      if (json.closed) { router.push('/'); return }
       setHostStatus(json.message || 'Done')
       if (json.isOpen !== undefined) {
         setData(prev => prev ? { ...prev, isOpen: json.isOpen } : prev)
@@ -156,20 +157,22 @@ export default function PollPage() {
     return (
       <>
         <Head><title>Poll Not Found — Movie Night</title></Head>
-        <style jsx global>{`
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { background: #f5efe0; font-family: 'DM Mono', monospace; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-          .not-found { text-align: center; padding: 48px 24px; }
-          .not-found h2 { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: #1a1209; margin-bottom: 12px; }
-          .not-found p { font-size: 0.78rem; color: #3d2b1f; opacity: 0.5; margin-bottom: 28px; }
-          .not-found a { font-size: 0.78rem; color: #c0392b; text-decoration: none; }
-        `}</style>
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Mono:wght@400&display=swap" rel="stylesheet" />
-        <div className="not-found">
-          <div style={{ fontSize: '2.4rem', marginBottom: 20 }}>🎞</div>
-          <h2>Poll not found</h2>
-          <p>This poll may have expired or the link is invalid.</p>
-          <a href="/">Start a new poll</a>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="px-6 py-12 text-center">
+            <div className="mb-5 text-[2.4rem]">🎞</div>
+            <h2
+              className="mb-3 text-[1.6rem] text-dark"
+              style={{ fontFamily: playfair }}
+            >
+              Poll not found
+            </h2>
+            <p className="mb-7 text-[0.78rem] text-brown opacity-50">
+              This poll may have expired or the link is invalid.
+            </p>
+            <a href="/" className="text-[0.78rem] text-brand-red no-underline">
+              Start a new poll
+            </a>
+          </div>
         </div>
       </>
     )
@@ -177,569 +180,41 @@ export default function PollPage() {
 
   return (
     <>
-      <Head>
-        <title>Movie Night</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-      </Head>
-
-      <style jsx global>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-          --cream: #f5efe0;
-          --parchment: #ede3cc;
-          --dark: #1a1209;
-          --red: #c0392b;
-          --gold: #c9952a;
-          --brown: #3d2b1f;
-          --shadow: rgba(26,18,9,0.14);
-        }
-
-        body {
-          background: var(--cream);
-          color: var(--dark);
-          font-family: 'DM Mono', monospace;
-          min-height: 100vh;
-          background-image:
-            radial-gradient(ellipse at 15% 0%, rgba(201,149,42,0.15) 0%, transparent 55%),
-            radial-gradient(ellipse at 85% 100%, rgba(192,57,43,0.1) 0%, transparent 55%);
-        }
-
-        .container {
-          max-width: 700px;
-          margin: 0 auto;
-          padding: 56px 20px 80px;
-        }
-
-        header {
-          text-align: center;
-          margin-bottom: 52px;
-        }
-
-        .header-ornament {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          margin-bottom: 18px;
-        }
-        .header-ornament::before,
-        .header-ornament::after {
-          content: '';
-          width: 48px;
-          height: 1px;
-          background: var(--brown);
-          opacity: 0.35;
-        }
-        .header-ornament span { font-size: 1.1rem; opacity: 0.55; }
-
-        h1 {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(2.6rem, 8vw, 4.2rem);
-          font-weight: 900;
-          letter-spacing: -0.02em;
-          line-height: 1;
-          color: var(--dark);
-        }
-        h1 em { font-style: italic; color: var(--red); }
-
-        .subtitle {
-          margin-top: 12px;
-          font-size: 0.7rem;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          color: var(--brown);
-          opacity: 0.6;
-        }
-
-        .divider {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          margin: 36px 0;
-        }
-        .divider::before, .divider::after {
-          content: '';
-          flex: 1;
-          height: 1px;
-          background: var(--brown);
-          opacity: 0.2;
-        }
-        .divider-icon { font-size: 0.9rem; opacity: 0.4; }
-
-        /* ── Host Panel ── */
-        .host-panel {
-          background: var(--dark);
-          color: var(--cream);
-          border-radius: 10px;
-          padding: 24px 24px 20px;
-          margin-bottom: 28px;
-          border: 1px solid rgba(201,149,42,0.25);
-          box-shadow: 0 4px 20px rgba(26,18,9,0.25);
-        }
-
-        .host-panel-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 18px;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-
-        .host-panel-title {
-          font-family: 'Playfair Display', serif;
-          font-size: 1rem;
-          font-weight: 700;
-          color: var(--gold);
-          letter-spacing: 0.02em;
-        }
-
-        .state-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 4px 10px;
-          border-radius: 3px;
-          font-size: 0.65rem;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-        }
-        .badge-open { background: rgba(39,174,96,0.18); color: #2ecc71; }
-        .badge-closed { background: rgba(192,57,43,0.25); color: #e74c3c; }
-
-        .host-actions {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-          margin-bottom: 14px;
-        }
-
-        .host-panel-header-right {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .btn-close-poll-icon {
-          background: transparent;
-          border: none;
-          cursor: pointer;
-          line-height: 1;
-          padding: 2px;
-          color: #e74c3c;
-          opacity: 0.5;
-          transition: opacity 0.15s;
-          display: flex;
-          align-items: center;
-        }
-        .btn-close-poll-icon:hover:not(:disabled) { opacity: 1; }
-        .btn-close-poll-icon:disabled { opacity: 0.2; cursor: not-allowed; }
-
-        .host-links {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .host-link-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .link-row-label {
-          font-family: 'DM Mono', monospace;
-          font-size: 0.65rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: rgba(245,239,224,0.4);
-          width: 34px;
-          flex-shrink: 0;
-        }
-
-        .link-input-wrapper {
-          display: flex;
-          align-items: center;
-          flex: 1;
-          background: rgba(0,0,0,0.35);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 6px;
-          overflow: hidden;
-        }
-
-        .link-input {
-          flex: 1;
-          background: transparent;
-          -webkit-appearance: none;
-          border: none;
-          outline: none;
-          padding: 8px 10px;
-          font-family: 'DM Mono', monospace;
-          font-size: 0.65rem;
-          color: rgba(245,239,224,0.55);
-          min-width: 0;
-          cursor: default;
-        }
-
-        .btn-copy-icon {
-          flex-shrink: 0;
-          background: transparent;
-          border: none;
-          border-left: 1px solid rgba(255,255,255,0.08);
-          padding: 8px 10px;
-          cursor: pointer;
-          color: rgba(245,239,224,0.4);
-          display: flex;
-          align-items: center;
-          transition: color 0.15s;
-        }
-        .btn-copy-icon:hover { color: var(--gold); }
-
-        .btn-host-action {
-          padding: 10px 14px;
-          border: none;
-          border-radius: 6px;
-          font-family: 'DM Mono', monospace;
-          font-size: 0.7rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: opacity 0.15s, transform 0.1s;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .btn-host-action:hover:not(:disabled) { opacity: 0.82; transform: translateY(-1px); }
-        .btn-host-action:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        .btn-toggle { background: rgba(255,255,255,0.1); color: var(--cream); }
-        .btn-reset { background: rgba(192,57,43,0.7); color: white; }
-
-        .host-status {
-          margin-top: 10px;
-          font-size: 0.7rem;
-          opacity: 0.55;
-          letter-spacing: 0.04em;
-          min-height: 18px;
-        }
-
-        /* ── Closed banner ── */
-        .closed-banner {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          background: var(--dark);
-          color: var(--cream);
-          padding: 13px 24px;
-          border-radius: 6px;
-          font-size: 0.72rem;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          margin-bottom: 28px;
-          border: 1px solid rgba(255,255,255,0.06);
-        }
-
-        /* ── Suggest a Film card ── */
-        .submit-area {
-          background: white;
-          border: 1.5px solid rgba(61,43,31,0.12);
-          border-top: 3px solid var(--gold);
-          border-radius: 8px;
-          padding: 28px 28px 24px;
-          box-shadow: 0 2px 16px var(--shadow);
-          margin-bottom: 12px;
-        }
-        .submit-area h2 {
-          font-family: 'Playfair Display', serif;
-          font-size: 1.15rem;
-          font-weight: 700;
-          margin-bottom: 4px;
-          color: var(--dark);
-        }
-        .submit-hint {
-          font-size: 0.7rem;
-          color: var(--brown);
-          opacity: 0.5;
-          letter-spacing: 0.04em;
-          margin-bottom: 18px;
-        }
-        .already-submitted {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 0.78rem;
-          color: var(--gold);
-          letter-spacing: 0.04em;
-          padding: 8px 0 4px;
-        }
-        .input-row { display: flex; gap: 10px; }
-
-        input[type="text"] {
-          flex: 1;
-          padding: 12px 16px;
-          border: 1.5px solid rgba(61,43,31,0.18);
-          border-radius: 6px;
-          font-family: 'DM Mono', monospace;
-          font-size: 0.85rem;
-          background: var(--cream);
-          color: var(--dark);
-          transition: border-color 0.2s, box-shadow 0.2s;
-          outline: none;
-        }
-        input[type="text"]:focus {
-          border-color: var(--gold);
-          box-shadow: 0 0 0 3px rgba(201,149,42,0.12);
-        }
-        input[type="text"]::placeholder { opacity: 0.35; }
-        input[type="text"]:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .btn-submit {
-          padding: 12px 22px;
-          background: var(--red);
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-family: 'DM Mono', monospace;
-          font-size: 0.78rem;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-          white-space: nowrap;
-        }
-        .btn-submit:hover:not(:disabled) {
-          background: #a93226;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(192,57,43,0.3);
-        }
-        .btn-submit:active:not(:disabled) { transform: translateY(0); }
-        .btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
-
-        .error-msg { margin-top: 12px; font-size: 0.74rem; color: var(--red); letter-spacing: 0.03em; }
-        .flash { margin-top: 12px; font-size: 0.74rem; color: var(--gold); letter-spacing: 0.03em; }
-
-        /* ── Contenders ── */
-        .movies-section h2 {
-          font-family: 'Playfair Display', serif;
-          font-size: 1.5rem;
-          font-weight: 700;
-          margin-bottom: 16px;
-          color: var(--dark);
-        }
-        .movies-count {
-          font-size: 0.68rem;
-          color: var(--brown);
-          opacity: 0.45;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          margin-bottom: 20px;
-        }
-        .empty {
-          text-align: center;
-          padding: 52px 24px;
-          opacity: 0.35;
-          font-size: 0.78rem;
-          letter-spacing: 0.1em;
-          line-height: 1.8;
-        }
-
-        /* ── Movie cards ── */
-        .movie-card {
-          background: white;
-          border: 1.5px solid rgba(61,43,31,0.1);
-          border-radius: 8px;
-          padding: 14px 16px 14px 14px;
-          margin-bottom: 10px;
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          box-shadow: 0 1px 6px var(--shadow);
-          transition: box-shadow 0.2s, transform 0.15s, border-color 0.2s;
-          position: relative;
-          overflow: hidden;
-          animation: fadeIn 0.3s ease both;
-        }
-        .movie-card:hover { box-shadow: 0 6px 20px var(--shadow); transform: translateY(-2px); }
-        .movie-card.leader {
-          border-color: rgba(201,149,42,0.5);
-          background: linear-gradient(135deg, white 80%, rgba(201,149,42,0.04) 100%);
-        }
-        .vote-bar {
-          position: absolute;
-          bottom: 0; left: 0;
-          height: 3px;
-          background: linear-gradient(to right, var(--gold), var(--red));
-          transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
-          border-radius: 0 2px 0 6px;
-        }
-        .rank {
-          font-family: 'Playfair Display', serif;
-          font-size: 2.8rem;
-          font-weight: 900;
-          font-style: italic;
-          color: rgba(61,43,31,0.55);
-          min-width: 42px;
-          text-align: center;
-          line-height: 1;
-          flex-shrink: 0;
-        }
-        .movie-card.leader .rank { color: var(--gold); }
-        .movie-poster {
-          width: 38px; height: 56px;
-          object-fit: cover;
-          border-radius: 3px;
-          flex-shrink: 0;
-          box-shadow: 0 2px 6px rgba(26,18,9,0.2);
-        }
-        .movie-info { flex: 1; min-width: 0; }
-        .movie-title {
-          font-family: 'Playfair Display', serif;
-          font-size: 1rem;
-          font-weight: 700;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          line-height: 1.3;
-        }
-        .movie-meta {
-          font-size: 0.67rem;
-          color: var(--brown);
-          opacity: 0.45;
-          margin-top: 3px;
-          letter-spacing: 0.06em;
-        }
-
-        /* ── Vote button ── */
-        .vote-btn {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 3px;
-          background: none;
-          border: 1.5px solid rgba(61,43,31,0.15);
-          border-radius: 8px;
-          padding: 10px 14px;
-          cursor: pointer;
-          transition: all 0.15s;
-          min-width: 60px;
-          font-family: 'DM Mono', monospace;
-          flex-shrink: 0;
-        }
-        .vote-btn:hover:not(:disabled) {
-          border-color: var(--gold);
-          background: rgba(201,149,42,0.07);
-          transform: translateY(-1px);
-        }
-        .vote-btn.voted {
-          background: var(--dark);
-          border-color: var(--dark);
-          color: var(--cream);
-          box-shadow: 0 2px 8px rgba(26,18,9,0.25);
-        }
-        .vote-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-        .vote-count { font-size: 1.05rem; font-weight: 500; line-height: 1; }
-        .vote-label { font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.55; }
-
-        /* ── Poster modal ── */
-        .modal-backdrop {
-          position: fixed; inset: 0;
-          background: rgba(26,18,9,0.7);
-          backdrop-filter: blur(4px);
-          display: flex; align-items: center; justify-content: center;
-          z-index: 100; padding: 20px;
-        }
-        .modal {
-          background: white; border-radius: 12px;
-          padding: 32px 28px 28px;
-          max-width: 300px; width: 100%;
-          box-shadow: 0 24px 64px rgba(26,18,9,0.45);
-          text-align: center;
-        }
-        .modal-eyebrow {
-          font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
-          color: var(--brown); opacity: 0.45; margin-bottom: 16px;
-        }
-        .modal-poster {
-          width: 150px; height: 222px; object-fit: cover;
-          border-radius: 6px; margin: 0 auto 20px; display: block;
-          box-shadow: 0 6px 24px rgba(26,18,9,0.25);
-        }
-        .modal-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; line-height: 1.3; }
-        .modal-year { font-size: 0.68rem; color: var(--brown); opacity: 0.45; letter-spacing: 0.12em; margin-bottom: 24px; }
-        .modal-buttons { display: flex; flex-direction: column; gap: 8px; }
-        .btn-confirm {
-          padding: 12px; background: var(--dark); color: var(--cream); border: none; border-radius: 6px;
-          font-family: 'DM Mono', monospace; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
-          cursor: pointer; transition: background 0.2s;
-        }
-        .btn-confirm:hover { background: var(--brown); }
-        .btn-skip {
-          padding: 11px; background: none; color: var(--brown);
-          border: 1.5px solid rgba(61,43,31,0.15); border-radius: 6px;
-          font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
-          cursor: pointer; opacity: 0.55; transition: opacity 0.2s;
-        }
-        .btn-skip:hover { opacity: 1; }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        @media (max-width: 480px) {
-          .container { padding: 36px 16px 60px; }
-          .submit-area { padding: 22px 18px 20px; }
-          .input-row { flex-direction: column; }
-          .btn-submit { width: 100%; text-align: center; }
-          h1 { font-size: 2.6rem; }
-          .host-actions { grid-template-columns: 1fr; }
-        }
-
-        .lightbox-backdrop {
-          position: fixed; inset: 0;
-          background: rgba(26,18,9,0.85);
-          display: flex; align-items: center; justify-content: center;
-          z-index: 1000; padding: 20px;
-        }
-        .lightbox-content {
-          position: relative; display: flex; flex-direction: column;
-          align-items: center; gap: 14px; max-width: 340px; width: 100%;
-        }
-        .lightbox-img {
-          width: 100%; max-width: 300px; height: auto;
-          border-radius: 8px; box-shadow: 0 12px 40px rgba(26,18,9,0.5); display: block;
-        }
-        .lightbox-title { color: var(--cream); font-family: 'Playfair Display', serif; font-size: 1.1rem; text-align: center; }
-        .lightbox-close {
-          position: absolute; top: -14px; right: -14px;
-          background: var(--red); color: white; border: none;
-          border-radius: 50%; width: 32px; height: 32px; font-size: 0.9rem;
-          cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;
-        }
-      `}</style>
+      <Head><title>Movie Night</title></Head>
 
       {confirmDialog}
 
+      {/* ── Poster confirmation modal ── */}
       {modal && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <p className="modal-eyebrow">Is this the right film?</p>
-            <img className="modal-poster" src={modal.poster} alt={modal.title} />
-            <div className="modal-title">{modal.title}</div>
-            {modal.year && <div className="modal-year">{modal.year}</div>}
-            <div className="modal-buttons">
-              <button className="btn-confirm" onClick={() => { setModal(null); doSubmit(modal.poster) }}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/70 p-5 backdrop-blur-sm">
+          <div className="w-full max-w-[300px] rounded-xl bg-white px-7 py-8 text-center shadow-[0_24px_64px_rgba(26,18,9,0.45)]">
+            <p className="mb-4 text-[0.65rem] uppercase tracking-[0.2em] text-brown opacity-45">
+              Is this the right film?
+            </p>
+            <img
+              className="mx-auto mb-5 block h-[222px] w-[150px] rounded-md object-cover shadow-[0_6px_24px_rgba(26,18,9,0.25)]"
+              src={modal.poster}
+              alt={modal.title}
+            />
+            <div className="mb-1 text-[1.05rem] font-bold leading-snug" style={{ fontFamily: playfair }}>
+              {modal.title}
+            </div>
+            {modal.year && (
+              <div className="mb-6 text-[0.68rem] tracking-[0.12em] text-brown opacity-45">
+                {modal.year}
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <button
+                className="w-full rounded-md bg-dark py-3 font-mono text-[0.75rem] uppercase tracking-[0.1em] text-cream transition-colors hover:bg-brown"
+                onClick={() => { setModal(null); doSubmit(modal.poster) }}
+              >
                 That&apos;s the one
               </button>
-              <button className="btn-skip" onClick={() => { setModal(null); doSubmit() }}>
+              <button
+                className="w-full rounded-md border border-brown/15 bg-transparent py-3 font-mono text-[0.7rem] uppercase tracking-[0.08em] text-brown opacity-55 transition-opacity hover:opacity-100"
+                onClick={() => { setModal(null); doSubmit() }}
+              >
                 Wrong film, skip poster
               </button>
             </div>
@@ -747,36 +222,74 @@ export default function PollPage() {
         </div>
       )}
 
+      {/* ── Lightbox ── */}
       {lightboxPoster && (
-        <div className="lightbox-backdrop" onClick={() => setLightboxPoster(null)}>
-          <div className="lightbox-content" onClick={e => e.stopPropagation()}>
-            <img src={lightboxPoster.url} alt={lightboxPoster.title} className="lightbox-img" />
-            <div className="lightbox-title">{lightboxPoster.title}</div>
-            <button className="lightbox-close" onClick={() => setLightboxPoster(null)}>✕</button>
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-dark/85 p-5"
+          onClick={() => setLightboxPoster(null)}
+        >
+          <div
+            className="relative flex w-full max-w-[340px] flex-col items-center gap-3.5"
+            onClick={e => e.stopPropagation()}
+          >
+            <img
+              src={lightboxPoster.url}
+              alt={lightboxPoster.title}
+              className="block h-auto w-full max-w-[300px] rounded-lg shadow-[0_12px_40px_rgba(26,18,9,0.5)]"
+            />
+            <div className="text-center text-[1.1rem] text-cream" style={{ fontFamily: playfair }}>
+              {lightboxPoster.title}
+            </div>
+            <button
+              className="absolute -right-3.5 -top-3.5 flex h-8 w-8 items-center justify-center rounded-full bg-brand-red text-[0.9rem] text-white"
+              onClick={() => setLightboxPoster(null)}
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}
 
-      <div className="container">
-        <header>
-          <div className="header-ornament"><span>✦</span></div>
-          <h1>Movie <em>Night</em></h1>
-          <p className="subtitle">Suggest a movie · Cast your vote</p>
+      <div className="mx-auto max-w-[700px] px-5 py-14 pb-20">
+
+        {/* ── Page header ── */}
+        <header className="mb-13 text-center">
+          <div className="mb-4.5 flex items-center justify-center gap-2.5">
+            <span className="h-px w-12 bg-brown opacity-35" />
+            <span className="text-[1.1rem] opacity-55">✦</span>
+            <span className="h-px w-12 bg-brown opacity-35" />
+          </div>
+          <h1
+            className="text-[clamp(2.6rem,8vw,4.2rem)] font-black leading-none tracking-tight text-dark"
+            style={{ fontFamily: playfair }}
+          >
+            Movie <em className="italic text-brand-red">Night</em>
+          </h1>
+          <p className="mt-3 text-[0.7rem] uppercase tracking-[0.22em] text-brown opacity-60">
+            Suggest a movie · Cast your vote
+          </p>
         </header>
 
         {/* ── Host Panel ── */}
         {data?.isHost && (
-          <div className="host-panel">
-            <div className="host-panel-header">
-              <span className="host-panel-title">Host Panel</span>
-              <div className="host-panel-header-right">
+          <div className="mb-7 rounded-[10px] border border-gold/25 bg-dark px-6 pt-6 pb-5 text-cream shadow-[0_4px_20px_rgba(26,18,9,0.25)]">
+            <div className="mb-4.5 flex flex-wrap items-center justify-between gap-2.5">
+              <span className="text-[1rem] font-bold tracking-[0.02em] text-gold" style={{ fontFamily: playfair }}>
+                Host Panel
+              </span>
+              <div className="flex items-center gap-2">
                 {data && (
-                  <span className={`state-badge ${data.isOpen ? 'badge-open' : 'badge-closed'}`}>
+                  <span className={cn(
+                    'inline-flex items-center gap-1 rounded px-2.5 py-1 text-[0.65rem] uppercase tracking-[0.1em]',
+                    data.isOpen
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'bg-brand-red/25 text-red-400',
+                  )}>
                     ● {data.isOpen ? 'Voting Open' : 'Voting Closed'}
                   </span>
                 )}
                 <button
-                  className="btn-close-poll-icon"
+                  className="flex items-center p-0.5 text-red-400 opacity-50 transition-opacity hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-20"
                   onClick={async () => {
                     const ok = await confirm({
                       title: 'Close Poll',
@@ -797,16 +310,16 @@ export default function PollPage() {
               </div>
             </div>
 
-            <div className="host-actions">
+            <div className="mb-3.5 grid grid-cols-2 gap-2 max-sm:grid-cols-1">
               <button
-                className="btn-host-action btn-toggle"
+                className="truncate rounded-md bg-white/10 px-3.5 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] text-cream transition-all hover:opacity-80 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => hostAction('toggle')}
                 disabled={hostLoading}
               >
                 {hostLoading ? '...' : data?.isOpen ? 'Pause Voting' : 'Open Voting'}
               </button>
               <button
-                className="btn-host-action btn-reset"
+                className="truncate rounded-md bg-brand-red/70 px-3.5 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] text-white transition-all hover:opacity-80 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={async () => {
                   const ok = await confirm({
                     title: 'Reset Poll',
@@ -822,52 +335,65 @@ export default function PollPage() {
               </button>
             </div>
 
-            <div className="host-links">
-              <div className="host-link-row">
-                <span className="link-row-label">Guest</span>
-                <div className="link-input-wrapper">
-                  <input type="text" readOnly value={shareUrl} className="link-input" />
-                  <button className="btn-copy-icon" onClick={() => copyToClipboard(shareUrl, 'share')} title="Copy guest link">
-                    {copied === 'share'
-                      ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    }
-                  </button>
+            <div className="flex flex-col gap-2">
+              {[{ label: 'Guest', url: shareUrl, key: 'share' }, { label: 'Host', url: hostUrl, key: 'host' }].map(({ label, url, key }) => (
+                <div key={key} className="flex items-center gap-2">
+                  <span className="w-[34px] shrink-0 font-mono text-[0.65rem] uppercase tracking-[0.08em] text-cream/40">
+                    {label}
+                  </span>
+                  <div className="flex flex-1 items-center overflow-hidden rounded-md border border-white/[0.08] bg-black/35">
+                    <input
+                      type="text"
+                      readOnly
+                      value={url}
+                      className="min-w-0 flex-1 cursor-default border-none bg-transparent px-2.5 py-2 font-mono text-[0.65rem] text-cream/55 outline-none"
+                    />
+                    <button
+                      className="shrink-0 border-l border-white/[0.08] px-2.5 py-2 text-cream/40 transition-colors hover:text-gold"
+                      onClick={() => copyToClipboard(url, key)}
+                      title={`Copy ${label.toLowerCase()} link`}
+                    >
+                      {copied === key
+                        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      }
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="host-link-row">
-                <span className="link-row-label">Host</span>
-                <div className="link-input-wrapper">
-                  <input type="text" readOnly value={hostUrl} className="link-input" />
-                  <button className="btn-copy-icon" onClick={() => copyToClipboard(hostUrl, 'host')} title="Copy host link">
-                    {copied === 'host'
-                      ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    }
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
 
-            {hostStatus && <p className="host-status">{hostStatus}</p>}
+            {hostStatus && (
+              <p className="mt-2.5 min-h-[18px] text-[0.7rem] tracking-[0.04em] opacity-55">
+                {hostStatus}
+              </p>
+            )}
           </div>
         )}
 
+        {/* ── Closed banner (guests only) ── */}
         {data && !data.isOpen && !data.isHost && (
-          <div className="closed-banner">
+          <div className="mb-7 flex items-center justify-center gap-2.5 rounded-md border border-white/[0.06] bg-dark px-6 py-3.5 font-mono text-[0.72rem] uppercase tracking-[0.18em] text-cream">
             <span>🎬</span> Voting is now closed
           </div>
         )}
 
-        <div className="submit-area">
-          <h2>Suggest a Film</h2>
+        {/* ── Suggest a Film ── */}
+        <div className="mb-3 rounded-lg border border-brown/[0.12] border-t-gold border-t-[3px] bg-white px-7 pt-7 pb-6 shadow-[0_2px_16px_rgba(26,18,9,0.14)]">
+          <h2 className="mb-1 text-[1.15rem] font-bold text-dark" style={{ fontFamily: playfair }}>
+            Suggest a Film
+          </h2>
           {data?.hasSubmitted ? (
-            <p className="already-submitted">✓ Your suggestion has been added.</p>
+            <p className="flex items-center gap-2 py-2 text-[0.78rem] tracking-[0.04em] text-gold">
+              ✓ Your suggestion has been added.
+            </p>
           ) : (
             <>
-              <p className="submit-hint">One suggestion per session</p>
-              <div className="input-row">
-                <input
+              <p className="mb-4.5 text-[0.7rem] tracking-[0.04em] text-brown opacity-50">
+                One suggestion per session
+              </p>
+              <div className="flex gap-2.5 max-sm:flex-col">
+                <Input
                   type="text"
                   placeholder="e.g. Legally Blonde..."
                   value={input}
@@ -875,73 +401,122 @@ export default function PollPage() {
                   onKeyDown={e => e.key === 'Enter' && handleSubmitClick()}
                   disabled={busy || !data?.isOpen}
                   maxLength={100}
+                  className="flex-1 border-brown/[0.18] bg-cream font-mono text-[0.85rem] text-dark placeholder:opacity-35 focus-visible:border-gold focus-visible:ring-gold/12"
                 />
                 <button
-                  className="btn-submit"
+                  className="whitespace-nowrap rounded-md bg-brand-red px-5 py-3 font-mono text-[0.78rem] uppercase tracking-[0.1em] text-white transition-all hover:bg-[#a93226] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(192,57,43,0.3)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 max-sm:w-full"
                   onClick={handleSubmitClick}
                   disabled={busy || !input.trim() || !data?.isOpen}
                 >
-                  {fetchingPoster ? '...' : submitting ? '...' : 'Submit'}
+                  {busy ? '...' : 'Submit'}
                 </button>
               </div>
-              {error && <p className="error-msg">⚠ {error}</p>}
-              {flash && <p className="flash">{flash}</p>}
+              {error && <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-brand-red">⚠ {error}</p>}
+              {flash && <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-gold">{flash}</p>}
             </>
           )}
         </div>
 
-        <div className="divider"><span className="divider-icon">✦</span></div>
+        {/* ── Divider ── */}
+        <div className="my-9 flex items-center gap-3.5">
+          <span className="h-px flex-1 bg-brown opacity-20" />
+          <span className="text-[0.9rem] opacity-40">✦</span>
+          <span className="h-px flex-1 bg-brown opacity-20" />
+        </div>
 
-        <div className="movies-section">
-          <h2>The Contenders</h2>
+        {/* ── The Contenders ── */}
+        <div>
+          <h2 className="mb-4 text-[1.5rem] font-bold text-dark" style={{ fontFamily: playfair }}>
+            The Contenders
+          </h2>
           {data && data.movies.length > 0 && (
-            <p className="movies-count">{data.movies.length} film{data.movies.length !== 1 ? 's' : ''} in the running</p>
+            <p className="mb-5 text-[0.68rem] uppercase tracking-[0.1em] text-brown opacity-45">
+              {data.movies.length} film{data.movies.length !== 1 ? 's' : ''} in the running
+            </p>
           )}
 
           {!data || data.movies.length === 0 ? (
-            <div className="empty">
-              <div style={{ fontSize: '2.2rem', marginBottom: 14 }}>🎞</div>
+            <div className="px-6 py-[52px] text-center text-[0.78rem] leading-[1.8] tracking-[0.1em] opacity-35">
+              <div className="mb-3.5 text-[2.2rem]">🎞</div>
               No films yet — be the first to suggest one!
             </div>
           ) : (
-            data.movies.map((movie, i) => (
-              <div
-                key={movie.id}
-                className={`movie-card${i === 0 && movie.votes > 0 ? ' leader' : ''}`}
-                style={{ animationDelay: `${i * 0.05}s` }}
-              >
-                <div className="vote-bar" style={{ width: `${(movie.votes / maxVotes) * 100}%` }} />
-                <span className="rank">{i + 1}</span>
-                {movie.posterUrl && (
-                  <img
-                    className="movie-poster"
-                    src={movie.posterUrl}
-                    alt={movie.title}
-                    onClick={() => setLightboxPoster({ url: movie.posterUrl!, title: movie.title })}
-                    style={{ cursor: 'pointer' }}
-                  />
-                )}
-                <div className="movie-info">
-                  <div className="movie-title">
-                    {i === 0 && movie.votes > 0 ? '🏆 ' : ''}{movie.title}
-                  </div>
-                  <div className="movie-meta">
-                    {movie.votes === 1 ? '1 vote' : `${movie.votes} votes`}
-                  </div>
-                </div>
-                <button
-                  className={`vote-btn${votedFor === movie.id ? ' voted' : ''}`}
-                  onClick={() => vote(movie.id)}
-                  disabled={!!voting || !data.isOpen}
-                  title={votedFor === movie.id ? 'Remove vote' : 'Vote for this'}
+            data.movies.map((movie, i) => {
+              const isLeader = i === 0 && movie.votes > 0
+              const isVoted = votedFor === movie.id
+              const votePct = (movie.votes / maxVotes) * 100
+
+              return (
+                <div
+                  key={movie.id}
+                  className={cn(
+                    'animate-[fadeIn_0.3s_ease_both] relative mb-2.5 flex items-center gap-3.5 overflow-hidden rounded-lg border border-brown/10 bg-white px-4 py-3.5',
+                    'shadow-[0_1px_6px_rgba(26,18,9,0.14)] transition-all duration-200 hover:shadow-[0_6px_20px_rgba(26,18,9,0.14)] hover:-translate-y-0.5',
+                    isLeader && 'border-gold/50 bg-gradient-to-br from-white via-white to-gold/[0.04]',
+                  )}
+                  style={{ animationDelay: `${i * 0.05}s` }}
                 >
-                  <span className="vote-count">
-                    {voting === movie.id ? '…' : votedFor === movie.id ? '✓' : '▲'}
+                  {/* Vote bar */}
+                  <div
+                    className="absolute bottom-0 left-0 h-[3px] rounded-[0_2px_0_6px] bg-gradient-to-r from-gold to-brand-red transition-[width] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
+                    style={{ width: `${votePct}%` }}
+                  />
+
+                  {/* Rank */}
+                  <span
+                    className={cn(
+                      'w-[42px] shrink-0 text-center text-[2.8rem] font-black italic leading-none',
+                      isLeader ? 'text-gold' : 'text-brown/55',
+                    )}
+                    style={{ fontFamily: playfair }}
+                  >
+                    {i + 1}
                   </span>
-                  <span className="vote-label">Vote</span>
-                </button>
-              </div>
-            ))
+
+                  {/* Poster thumbnail */}
+                  {movie.posterUrl && (
+                    <img
+                      className="h-14 w-[38px] shrink-0 cursor-pointer rounded-sm object-cover shadow-[0_2px_6px_rgba(26,18,9,0.2)]"
+                      src={movie.posterUrl}
+                      alt={movie.title}
+                      onClick={() => setLightboxPoster({ url: movie.posterUrl!, title: movie.title })}
+                    />
+                  )}
+
+                  {/* Movie info */}
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="truncate text-[1rem] font-bold leading-snug"
+                      style={{ fontFamily: playfair }}
+                    >
+                      {isLeader ? '🏆 ' : ''}{movie.title}
+                    </div>
+                    <div className="mt-0.5 text-[0.67rem] tracking-[0.06em] text-brown opacity-45">
+                      {movie.votes === 1 ? '1 vote' : `${movie.votes} votes`}
+                    </div>
+                  </div>
+
+                  {/* Vote button */}
+                  <button
+                    className={cn(
+                      'flex shrink-0 min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-lg border px-3.5 py-2.5 font-mono transition-all duration-150',
+                      'disabled:cursor-not-allowed disabled:opacity-35',
+                      isVoted
+                        ? 'border-dark bg-dark text-cream shadow-[0_2px_8px_rgba(26,18,9,0.25)]'
+                        : 'border-brown/15 bg-transparent hover:border-gold hover:bg-gold/[0.07] hover:-translate-y-px',
+                    )}
+                    onClick={() => vote(movie.id)}
+                    disabled={!!voting || !data.isOpen}
+                    title={isVoted ? 'Remove vote' : 'Vote for this'}
+                  >
+                    <span className="text-[1.05rem] font-medium leading-none">
+                      {voting === movie.id ? '…' : isVoted ? '✓' : '▲'}
+                    </span>
+                    <span className="text-[0.58rem] uppercase tracking-[0.14em] opacity-55">Vote</span>
+                  </button>
+                </div>
+              )
+            })
           )}
         </div>
       </div>

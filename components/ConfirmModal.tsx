@@ -1,4 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog'
+import { cn } from '@/lib/utils'
+
+const playfair = 'var(--font-playfair, "Playfair Display", serif)'
 
 export interface ConfirmOptions {
   title: string
@@ -26,122 +38,46 @@ function ConfirmDialog({
 
   useEffect(() => {
     confirmRef.current?.focus()
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel()
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [onCancel])
+  }, [])
 
   return (
-    <>
-      <style jsx global>{`
-        .confirm-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(26, 18, 9, 0.82);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 2000;
-          padding: 24px;
-          animation: confirm-fade-in 0.12s ease;
-        }
+    <AlertDialog open onOpenChange={(open) => { if (!open) onCancel() }}>
+      <AlertDialogContent
+        className="max-w-[380px] rounded-xl border border-white/10 bg-[#1e1509] p-7 shadow-[0_24px_60px_rgba(26,18,9,0.6)]"
+      >
+        <AlertDialogTitle
+          className="mb-2.5 text-[1.15rem] font-bold leading-snug text-gold"
+          style={{ fontFamily: playfair }}
+        >
+          {title}
+        </AlertDialogTitle>
 
-        @keyframes confirm-fade-in {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
+        <AlertDialogDescription className="mb-6 text-[0.75rem] leading-relaxed text-cream/60">
+          {message}
+        </AlertDialogDescription>
 
-        .confirm-modal {
-          background: #1e1509;
-          border: 1px solid rgba(245, 239, 224, 0.1);
-          border-radius: 12px;
-          padding: 28px 28px 24px;
-          max-width: 380px;
-          width: 100%;
-          box-shadow: 0 24px 60px rgba(26, 18, 9, 0.6);
-          animation: confirm-slide-up 0.15s ease;
-        }
-
-        @keyframes confirm-slide-up {
-          from { transform: translateY(8px); opacity: 0; }
-          to   { transform: translateY(0);  opacity: 1; }
-        }
-
-        .confirm-title {
-          font-family: 'Playfair Display', serif;
-          font-size: 1.15rem;
-          font-weight: 700;
-          color: #c9952a;
-          margin-bottom: 10px;
-          line-height: 1.3;
-        }
-
-        .confirm-message {
-          font-family: 'DM Mono', monospace;
-          font-size: 0.75rem;
-          color: rgba(245, 239, 224, 0.6);
-          line-height: 1.6;
-          margin-bottom: 24px;
-        }
-
-        .confirm-actions {
-          display: flex;
-          gap: 10px;
-          justify-content: flex-end;
-        }
-
-        .confirm-btn {
-          font-family: 'DM Mono', monospace;
-          font-size: 0.7rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          border: none;
-          border-radius: 6px;
-          padding: 10px 18px;
-          cursor: pointer;
-          transition: opacity 0.15s, transform 0.1s;
-        }
-
-        .confirm-btn:hover { opacity: 0.82; transform: translateY(-1px); }
-        .confirm-btn:active { transform: translateY(0); }
-
-        .confirm-cancel {
-          background: rgba(255, 255, 255, 0.07);
-          color: rgba(245, 239, 224, 0.5);
-        }
-
-        .confirm-ok {
-          background: rgba(255, 255, 255, 0.12);
-          color: #f5efe0;
-        }
-
-        .confirm-ok.is-danger {
-          background: #c0392b;
-          color: #fff;
-        }
-      `}</style>
-
-      <div className="confirm-backdrop" onClick={onCancel}>
-        <div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onClick={e => e.stopPropagation()}>
-          <p className="confirm-title" id="confirm-title">{title}</p>
-          <p className="confirm-message">{message}</p>
-          <div className="confirm-actions">
-            <button className="confirm-btn confirm-cancel" onClick={onCancel}>
-              {cancelLabel}
-            </button>
-            <button
-              ref={confirmRef}
-              className={`confirm-btn confirm-ok${danger ? ' is-danger' : ''}`}
-              onClick={onConfirm}
-            >
-              {confirmLabel}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+        <AlertDialogFooter className="flex justify-end gap-2.5">
+          <AlertDialogCancel
+            onClick={onCancel}
+            className="rounded-md border-none bg-white/[0.07] px-4 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] text-cream/50 transition-all hover:opacity-80 hover:-translate-y-px"
+          >
+            {cancelLabel}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            ref={confirmRef}
+            onClick={onConfirm}
+            className={cn(
+              'rounded-md border-none px-4 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] transition-all hover:opacity-80 hover:-translate-y-px',
+              danger
+                ? 'bg-brand-red text-white'
+                : 'bg-white/[0.12] text-cream',
+            )}
+          >
+            {confirmLabel}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
