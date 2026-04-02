@@ -7,32 +7,7 @@ import { cn } from '@/lib/utils'
 import { Ornament } from '@/components/Ornament'
 import { MovieCard } from '@/components/MovieCard'
 import { CopyLinkRow } from '@/components/CopyLinkRow'
-import type { PollConfig } from '@/lib/store'
-
-interface Movie {
-  id: string
-  title: string
-  submittedBy: string
-  votes: number
-  submittedAt: number
-  posterUrl?: string
-}
-
-interface SessionData {
-  movies: Movie[]
-  isOpen: boolean
-  config: PollConfig
-  hasSubmitted: boolean
-  submittedMovieIds: string[]
-  votedMovieIds: string[]
-  isHost: boolean
-}
-
-interface PosterModal {
-  poster: string
-  title: string
-  year: string
-}
+import type { PollConfig, SessionData, PosterModal } from '@/lib/types'
 
 const playfair = 'var(--font-playfair, "Playfair Display", serif)'
 
