@@ -52,11 +52,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const current = poll.config ?? DEFAULT_CONFIG
+    const nextAllowRemoval = typeof incoming.allowRemoval === 'boolean' ? incoming.allowRemoval : current.allowRemoval
     const updated: PollConfig = {
       maxVotesPerUser: parseLimit(incoming.maxVotesPerUser, current.maxVotesPerUser),
       maxSuggestionsPerUser: parseLimit(incoming.maxSuggestionsPerUser, current.maxSuggestionsPerUser),
-      allowRemoval: typeof incoming.allowRemoval === 'boolean' ? incoming.allowRemoval : current.allowRemoval,
+      allowRemoval: nextAllowRemoval,
       removalWindowMinutes: parseLimit(incoming.removalWindowMinutes, current.removalWindowMinutes),
+      removalEnabledAt: nextAllowRemoval && !current.allowRemoval ? Date.now() : (nextAllowRemoval ? current.removalEnabledAt : null),
     }
 
     poll.config = updated

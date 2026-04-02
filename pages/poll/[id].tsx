@@ -641,9 +641,10 @@ export default function PollPage() {
           ) : (
             data.movies.map((movie, i) => {
               const isMyMovie = data.submittedMovieIds.includes(movie.id)
+              const windowStart = Math.max(movie.submittedAt, config?.removalEnabledAt ?? 0)
               const withinWindow = config?.removalWindowMinutes === null
                 || (config?.removalWindowMinutes != null
-                  && Date.now() - movie.submittedAt <= config.removalWindowMinutes * 60 * 1000)
+                  && Date.now() - windowStart <= config.removalWindowMinutes * 60 * 1000)
               const canRemove = isMyMovie && (config?.allowRemoval ?? false) && withinWindow
                 && removing !== movie.id
 

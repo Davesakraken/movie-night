@@ -11,6 +11,7 @@ export interface PollConfig {
   maxSuggestionsPerUser: number | null     // null = unlimited; default 1
   allowRemoval: boolean                 // can users remove their suggestion; default false
   removalWindowMinutes: number | null   // null = no time limit; only applies when allowRemoval=true
+  removalEnabledAt: number | null       // timestamp when allowRemoval was last turned on; resets the window
 }
 
 export const DEFAULT_CONFIG: PollConfig = {
@@ -18,6 +19,7 @@ export const DEFAULT_CONFIG: PollConfig = {
   maxSuggestionsPerUser: 1,
   allowRemoval: false,
   removalWindowMinutes: null,
+  removalEnabledAt: null,
 }
 
 export interface Movie {

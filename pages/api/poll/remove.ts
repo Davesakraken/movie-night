@@ -31,7 +31,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (config.removalWindowMinutes !== null) {
       const windowMs = config.removalWindowMinutes * 60 * 1000
-      if (Date.now() - movie.submittedAt > windowMs) {
+      const windowStart = Math.max(movie.submittedAt, config.removalEnabledAt ?? 0)
+      if (Date.now() - windowStart > windowMs) {
         return { status: 403, body: { error: 'Removal window has expired' } }
       }
     }
