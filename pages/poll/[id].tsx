@@ -420,19 +420,10 @@ export default function PollPage() {
                 <div className="flex flex-col gap-4">
 
                   {/* Allow multiple votes */}
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[0.72rem] tracking-[0.03em] text-cream/80">Allow multiple votes</span>
-                      <Toggle
-                        checked={config.maxVotesPerUser !== 1}
-                        onChange={() => updateConfig({
-                          maxVotesPerUser: config.maxVotesPerUser === 1 ? 3 : 1,
-                        })}
-                      />
-                    </div>
-                    {config.maxVotesPerUser !== 1 && (
-                      <div className="mt-2.5 flex items-center gap-3 pl-1">
-                        <span className="text-[0.65rem] text-cream/45">Max per person</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[0.72rem] tracking-[0.03em] text-cream/80">Multiple votes</span>
+                      <div style={{ visibility: config.maxVotesPerUser === 1 ? 'hidden' : 'visible' }} className="flex items-center gap-2">
                         <input
                           key={String(config.maxVotesPerUser)}
                           type="number"
@@ -457,23 +448,20 @@ export default function PollPage() {
                           No limit
                         </label>
                       </div>
-                    )}
+                    </div>
+                    <Toggle
+                      checked={config.maxVotesPerUser !== 1}
+                      onChange={() => updateConfig({
+                        maxVotesPerUser: config.maxVotesPerUser === 1 ? 3 : 1,
+                      })}
+                    />
                   </div>
 
                   {/* Allow multiple suggestions */}
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[0.72rem] tracking-[0.03em] text-cream/80">Allow multiple suggestions</span>
-                      <Toggle
-                        checked={config.maxSuggestionsPerUser !== 1}
-                        onChange={() => updateConfig({
-                          maxSuggestionsPerUser: config.maxSuggestionsPerUser === 1 ? 3 : 1,
-                        })}
-                      />
-                    </div>
-                    {config.maxSuggestionsPerUser !== 1 && (
-                      <div className="mt-2.5 flex items-center gap-3 pl-1">
-                        <span className="text-[0.65rem] text-cream/45">Max per person</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[0.72rem] tracking-[0.03em] text-cream/80">Multiple suggestions</span>
+                      <div style={{ visibility: config.maxSuggestionsPerUser === 1 ? 'hidden' : 'visible' }} className="flex items-center gap-2">
                         <input
                           key={String(config.maxSuggestionsPerUser)}
                           type="number"
@@ -498,21 +486,20 @@ export default function PollPage() {
                           No limit
                         </label>
                       </div>
-                    )}
+                    </div>
+                    <Toggle
+                      checked={config.maxSuggestionsPerUser !== 1}
+                      onChange={() => updateConfig({
+                        maxSuggestionsPerUser: config.maxSuggestionsPerUser === 1 ? 3 : 1,
+                      })}
+                    />
                   </div>
 
                   {/* Allow removal */}
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
                       <span className="text-[0.72rem] tracking-[0.03em] text-cream/80">Allow removal</span>
-                      <Toggle
-                        checked={config.allowRemoval}
-                        onChange={() => updateConfig({ allowRemoval: !config.allowRemoval })}
-                      />
-                    </div>
-                    {config.allowRemoval && (
-                      <div className="mt-2.5 flex items-center gap-3 pl-1">
-                        <span className="text-[0.65rem] text-cream/45">Time window</span>
+                      <div style={{ visibility: config.allowRemoval ? 'visible' : 'hidden' }} className="flex items-center gap-2">
                         <select
                           value={config.removalWindowMinutes === null ? 'unlimited' : 'timed'}
                           onChange={e => updateConfig({
@@ -523,25 +510,27 @@ export default function PollPage() {
                           <option value="unlimited">Any time</option>
                           <option value="timed">Within</option>
                         </select>
-                        {config.removalWindowMinutes !== null && (
-                          <>
-                            <input
-                              key={config.removalWindowMinutes}
-                              type="number"
-                              min={1}
-                              max={1440}
-                              defaultValue={config.removalWindowMinutes}
-                              onBlur={e => {
-                                const v = parseInt(e.target.value, 10)
-                                if (v >= 1) updateConfig({ removalWindowMinutes: v })
-                              }}
-                              className="w-14 rounded border border-white/15 bg-white/8 px-2 py-1 font-mono text-[0.68rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40"
-                            />
-                            <span className="text-[0.65rem] text-cream/45">min</span>
-                          </>
-                        )}
+                        <div style={{ visibility: config.removalWindowMinutes !== null ? 'visible' : 'hidden' }} className="flex items-center gap-2">
+                          <input
+                            key={config.removalWindowMinutes ?? 'null'}
+                            type="number"
+                            min={1}
+                            max={1440}
+                            defaultValue={config.removalWindowMinutes ?? 10}
+                            onBlur={e => {
+                              const v = parseInt(e.target.value, 10)
+                              if (v >= 1) updateConfig({ removalWindowMinutes: v })
+                            }}
+                            className="w-14 rounded border border-white/15 bg-white/8 px-2 py-1 font-mono text-[0.68rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40"
+                          />
+                          <span className="text-[0.65rem] text-cream/45">min</span>
+                        </div>
                       </div>
-                    )}
+                    </div>
+                    <Toggle
+                      checked={config.allowRemoval}
+                      onChange={() => updateConfig({ allowRemoval: !config.allowRemoval })}
+                    />
                   </div>
 
                 </div>
