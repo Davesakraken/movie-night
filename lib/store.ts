@@ -6,6 +6,20 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN!,
 })
 
+export interface PollConfig {
+  maxVotesPerUser: number | null           // null = unlimited; default 1
+  maxSuggestionsPerUser: number | null     // null = unlimited; default 1
+  allowRemoval: boolean                 // can users remove their suggestion; default false
+  removalWindowMinutes: number | null   // null = no time limit; only applies when allowRemoval=true
+}
+
+export const DEFAULT_CONFIG: PollConfig = {
+  maxVotesPerUser: 1,
+  maxSuggestionsPerUser: 1,
+  allowRemoval: false,
+  removalWindowMinutes: null,
+}
+
 export interface Movie {
   id: string
   title: string
@@ -21,6 +35,7 @@ export interface Poll {
   movies: Movie[]
   isOpen: boolean
   createdAt: number
+  config: PollConfig
 }
 
 const TTL = 60 * 60 * 24 // 24 hours
@@ -57,7 +72,13 @@ export async function withPollLock<T>(pollId: string, fn: () => Promise<T>): Pro
 export async function createPoll(): Promise<{ pollId: string; hostToken: string }> {
   const pollId = generatePollId()
   const hostToken = generateHostToken()
-  const poll: Poll = { pollId, movies: [], isOpen: true, createdAt: Date.now() }
+  const poll: Poll = {
+    pollId,
+    movies: [],
+    isOpen: true,
+    createdAt: Date.now(),
+    config: { ...DEFAULT_CONFIG },
+  }
   await Promise.all([
     kv.set(pollKey(pollId), poll, { ex: TTL }),
     kv.set(hostKey(pollId), hostToken, { ex: TTL }),
@@ -77,12 +98,30 @@ export async function getHostToken(pollId: string): Promise<string | null> {
   return await kv.get<string>(hostKey(pollId))
 }
 
-export async function getSubmission(pollId: string, ip: string): Promise<string | null> {
-  return await kv.get<string>(subKey(pollId, ip))
+/**
+ * Returns the list of movieIds the given IP has submitted to this poll.
+ * Handles both the legacy single-string format and the current array format.
+ */
+export async function getSubmissions(pollId: string, ip: string): Promise<string[]> {
+  const val = await kv.get<string | string[]>(subKey(pollId, ip))
+  if (!val) return []
+  if (typeof val === 'string') return [val]
+  return val
 }
 
-export async function setSubmission(pollId: string, ip: string, movieId: string): Promise<void> {
-  await kv.set(subKey(pollId, ip), movieId, { ex: TTL })
+export async function addSubmission(pollId: string, ip: string, movieId: string): Promise<void> {
+  const existing = await getSubmissions(pollId, ip)
+  await kv.set(subKey(pollId, ip), [...existing, movieId], { ex: TTL })
+}
+
+export async function removeSubmission(pollId: string, ip: string, movieId: string): Promise<void> {
+  const existing = await getSubmissions(pollId, ip)
+  const updated = existing.filter(id => id !== movieId)
+  if (updated.length === 0) {
+    await kv.del(subKey(pollId, ip))
+  } else {
+    await kv.set(subKey(pollId, ip), updated, { ex: TTL })
+  }
 }
 
 export async function deletePoll(pollId: string): Promise<void> {
@@ -97,7 +136,14 @@ export async function deletePoll(pollId: string): Promise<void> {
 }
 
 export async function resetPoll(pollId: string): Promise<void> {
-  const poll: Poll = { pollId, movies: [], isOpen: true, createdAt: Date.now() }
+  const existing = await getPoll(pollId)
+  const poll: Poll = {
+    pollId,
+    movies: [],
+    isOpen: true,
+    createdAt: Date.now(),
+    config: existing?.config ?? { ...DEFAULT_CONFIG },
+  }
   const pattern = subKey(pollId, '*')
   let cursor = '0'
   do {

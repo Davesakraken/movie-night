@@ -12,8 +12,10 @@ interface MovieCardProps {
   isVoted: boolean
   isVoting: boolean
   canVote: boolean
+  canRemove: boolean
   animationDelay: number
   onVote: () => void
+  onRemove?: () => void
   onPosterClick?: () => void
 }
 
@@ -27,8 +29,10 @@ export function MovieCard({
   isVoted,
   isVoting,
   canVote,
+  canRemove,
   animationDelay,
   onVote,
+  onRemove,
   onPosterClick,
 }: MovieCardProps) {
   const votePct = (votes / maxVotes) * 100
@@ -77,8 +81,17 @@ export function MovieCard({
         >
           {isLeader ? '🏆 ' : ''}{title}
         </div>
-        <div className="mt-0.5 text-[0.67rem] tracking-[0.06em] text-brown opacity-45">
-          {votes === 1 ? '1 vote' : `${votes} votes`}
+        <div className="mt-0.5 flex items-center gap-2 text-[0.67rem] tracking-[0.06em] text-brown opacity-45">
+          <span>{votes === 1 ? '1 vote' : `${votes} votes`}</span>
+          {canRemove && (
+            <button
+              className="opacity-60 underline underline-offset-2 transition-opacity hover:opacity-100"
+              onClick={onRemove}
+              title="Remove your suggestion"
+            >
+              recall
+            </button>
+          )}
         </div>
       </div>
 

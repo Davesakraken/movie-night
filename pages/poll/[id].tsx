@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Ornament } from '@/components/Ornament'
 import { MovieCard } from '@/components/MovieCard'
 import { CopyLinkRow } from '@/components/CopyLinkRow'
+import type { PollConfig } from '@/lib/store'
 
 interface Movie {
   id: string
@@ -20,8 +21,10 @@ interface Movie {
 interface SessionData {
   movies: Movie[]
   isOpen: boolean
+  config: PollConfig
   hasSubmitted: boolean
-  submittedMovieId: string | null
+  submittedMovieIds: string[]
+  votedMovieIds: string[]
   isHost: boolean
 }
 
@@ -33,6 +36,28 @@ interface PosterModal {
 
 const playfair = 'var(--font-playfair, "Playfair Display", serif)'
 
+// ── Toggle switch ────────────────────────────────────────────────
+function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className={cn(
+        'relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200',
+        checked ? 'bg-gold' : 'bg-white/20',
+      )}
+    >
+      <span className={cn(
+        'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200',
+        checked && 'translate-x-4',
+      )} />
+    </button>
+  )
+}
+
+// ── Component ───────────────────────────────────────────────────
 export default function PollPage() {
   const router = useRouter()
   const { id: pollId, host: hostToken } = router.query as { id?: string; host?: string }
@@ -41,8 +66,9 @@ export default function PollPage() {
   const [input, setInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [voting, setVoting] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [votedFor, setVotedFor] = useState<string | null>(null)
+  const [votedFor, setVotedFor] = useState<Set<string>>(new Set())
   const [flash, setFlash] = useState<string | null>(null)
   const [fetchingPoster, setFetchingPoster] = useState(false)
   const [modal, setModal] = useState<PosterModal | null>(null)
@@ -57,11 +83,11 @@ export default function PollPage() {
     if (!pollId) return
     const params = new URLSearchParams({ pollId })
     if (hostToken) params.set('hostToken', hostToken)
-    const res = await fetch(`/api/session?${params}`)
+    const res = await fetch(`/api/poll/session?${params}`)
     if (res.status === 404) { setNotFound(true); return }
     const json = await res.json()
     setData(json)
-    if (json.votedMovieId) setVotedFor(json.votedMovieId)
+    setVotedFor(new Set(json.votedMovieIds ?? []))
   }, [pollId, hostToken])
 
   useEffect(() => {
@@ -76,7 +102,7 @@ export default function PollPage() {
     setFetchingPoster(true)
     setError('')
     try {
-      const res = await fetch(`/api/movie-search?title=${encodeURIComponent(input.trim())}`)
+      const res = await fetch(`/api/movies/search?title=${encodeURIComponent(input.trim())}`)
       const json = await res.json()
       if (json.poster) {
         setModal({ poster: json.poster, title: json.title || input.trim(), year: json.year || '' })
@@ -90,7 +116,7 @@ export default function PollPage() {
 
   async function doSubmit(posterUrl?: string) {
     setSubmitting(true)
-    const res = await fetch('/api/submit', {
+    const res = await fetch('/api/poll/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pollId, title: input.trim(), posterUrl }),
@@ -109,25 +135,53 @@ export default function PollPage() {
 
   async function vote(movieId: string) {
     setVoting(movieId)
-    const res = await fetch('/api/vote', {
+    const res = await fetch('/api/poll/vote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pollId, movieId }),
     })
     setVoting(null)
     if (res.ok) {
-      setVotedFor(prev => (prev === movieId ? null : movieId))
+      setVotedFor(prev => {
+        const next = new Set(prev)
+        if (next.has(movieId)) next.delete(movieId)
+        else next.add(movieId)
+        return next
+      })
       fetchSession()
+    } else {
+      const json = await res.json()
+      setError(json.error || 'Could not vote')
+      setTimeout(() => setError(''), 3000)
     }
   }
 
-  async function hostAction(act: string) {
-    setHostLoading(true)
-    setHostStatus('')
-    const res = await fetch('/api/admin', {
+  async function remove(movieId: string) {
+    setRemoving(movieId)
+    const res = await fetch('/api/poll/remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: act, pollId, hostToken }),
+      body: JSON.stringify({ pollId, movieId }),
+    })
+    setRemoving(null)
+    if (res.ok) {
+      setFlash('Suggestion removed.')
+      setTimeout(() => setFlash(null), 2500)
+      fetchSession()
+    } else {
+      const json = await res.json()
+      setError(json.error || 'Could not remove suggestion')
+      setTimeout(() => setError(''), 3000)
+    }
+  }
+
+  async function hostAction(act: string, extra?: Record<string, unknown>) {
+    setHostLoading(true)
+    setHostStatus('')
+    const res = await fetch('/api/poll/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: act, pollId, hostToken, ...extra }),
     })
     const json = await res.json()
     setHostLoading(false)
@@ -135,13 +189,20 @@ export default function PollPage() {
       setHostStatus('Error: ' + json.error)
     } else {
       if (json.closed) { router.push('/'); return }
-      setHostStatus(json.message || 'Done')
+      setHostStatus(json.message || '')
       if (json.isOpen !== undefined) {
         setData(prev => prev ? { ...prev, isOpen: json.isOpen } : prev)
       }
+      if (json.config) {
+        setData(prev => prev ? { ...prev, config: json.config } : prev)
+      }
       if (act === 'reset') fetchSession()
-      setTimeout(() => setHostStatus(''), 3000)
+      if (hostStatus) setTimeout(() => setHostStatus(''), 3000)
     }
+  }
+
+  async function updateConfig(patch: Partial<PollConfig>) {
+    await hostAction('updateConfig', { config: { ...(data?.config ?? {}), ...patch } })
   }
 
   function copyToClipboard(text: string, which: string) {
@@ -152,9 +213,16 @@ export default function PollPage() {
   }
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/poll/${pollId}` : ''
-  const hostUrl = typeof window !== 'undefined' ? `${window.location.origin}/poll/${pollId}?host=${hostToken}` : ''
+  const hostUrl  = typeof window !== 'undefined' ? `${window.location.origin}/poll/${pollId}?host=${hostToken}` : ''
   const maxVotes = data ? Math.max(...data.movies.map(m => m.votes), 1) : 1
   const busy = submitting || fetchingPoster
+
+  const config = data?.config
+  const maxVotesPerUser = config ? config.maxVotesPerUser : 1
+  const remainingVotes = maxVotesPerUser === null ? Infinity : maxVotesPerUser - votedFor.size
+  const maxSuggestions = config ? config.maxSuggestionsPerUser : 1
+  const submittedCount = data?.submittedMovieIds.length ?? 0
+  const canStillSuggest = maxSuggestions === null || submittedCount < maxSuggestions
 
   if (notFound) {
     return (
@@ -272,6 +340,8 @@ export default function PollPage() {
         {/* ── Host Panel ── */}
         {data?.isHost && (
           <div className="mb-7 rounded-[10px] border border-gold/25 bg-dark px-6 pt-6 pb-5 text-cream shadow-[0_4px_20px_rgba(26,18,9,0.25)]">
+
+            {/* Header row */}
             <div className="mb-4.5 flex flex-wrap items-center justify-between gap-2.5">
               <span className="text-[1rem] font-bold tracking-[0.02em] text-gold" style={{ fontFamily: playfair }}>
                 Host Panel
@@ -309,6 +379,7 @@ export default function PollPage() {
               </div>
             </div>
 
+            {/* Action buttons */}
             <div className="mb-3.5 grid grid-cols-2 gap-2 max-sm:grid-cols-1">
               <button
                 className="truncate rounded-md bg-white/10 px-3.5 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] text-cream transition-all hover:opacity-80 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
@@ -334,10 +405,148 @@ export default function PollPage() {
               </button>
             </div>
 
+            {/* Share links */}
             <div className="flex flex-col gap-2">
               <CopyLinkRow label="Guest" url={shareUrl} copied={copied === 'share'} onCopy={() => copyToClipboard(shareUrl, 'share')} />
               <CopyLinkRow label="Host"  url={hostUrl}  copied={copied === 'host'}  onCopy={() => copyToClipboard(hostUrl, 'host')} />
             </div>
+
+            {/* ── Poll Settings ── */}
+            {config && (
+              <div className="mt-5 border-t border-white/10 pt-4">
+                <p className="mb-3.5 text-[0.6rem] uppercase tracking-[0.16em] text-cream/40">
+                  Poll Settings
+                </p>
+                <div className="flex flex-col gap-4">
+
+                  {/* Allow multiple votes */}
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[0.72rem] tracking-[0.03em] text-cream/80">Allow multiple votes</span>
+                      <Toggle
+                        checked={config.maxVotesPerUser !== 1}
+                        onChange={() => updateConfig({
+                          maxVotesPerUser: config.maxVotesPerUser === 1 ? 3 : 1,
+                        })}
+                      />
+                    </div>
+                    {config.maxVotesPerUser !== 1 && (
+                      <div className="mt-2.5 flex items-center gap-3 pl-1">
+                        <span className="text-[0.65rem] text-cream/45">Max per person</span>
+                        <input
+                          key={String(config.maxVotesPerUser)}
+                          type="number"
+                          min={2}
+                          max={100}
+                          defaultValue={config.maxVotesPerUser ?? 3}
+                          onBlur={e => {
+                            const v = parseInt(e.target.value, 10)
+                            if (v >= 2) updateConfig({ maxVotesPerUser: v })
+                          }}
+                          disabled={config.maxVotesPerUser === null}
+                          className="w-14 rounded border border-white/15 bg-white/8 px-2 py-1 font-mono text-[0.68rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
+                        />
+                        <label className="flex cursor-pointer items-center gap-1.5 text-[0.65rem] text-cream/55">
+                          <input
+                            key={`nolimit-votes-${String(config.maxVotesPerUser)}`}
+                            type="checkbox"
+                            defaultChecked={config.maxVotesPerUser === null}
+                            onChange={e => updateConfig({ maxVotesPerUser: e.target.checked ? null : 3 })}
+                            className="accent-gold"
+                          />
+                          No limit
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Allow multiple suggestions */}
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[0.72rem] tracking-[0.03em] text-cream/80">Allow multiple suggestions</span>
+                      <Toggle
+                        checked={config.maxSuggestionsPerUser !== 1}
+                        onChange={() => updateConfig({
+                          maxSuggestionsPerUser: config.maxSuggestionsPerUser === 1 ? 3 : 1,
+                        })}
+                      />
+                    </div>
+                    {config.maxSuggestionsPerUser !== 1 && (
+                      <div className="mt-2.5 flex items-center gap-3 pl-1">
+                        <span className="text-[0.65rem] text-cream/45">Max per person</span>
+                        <input
+                          key={String(config.maxSuggestionsPerUser)}
+                          type="number"
+                          min={2}
+                          max={100}
+                          defaultValue={config.maxSuggestionsPerUser ?? 3}
+                          onBlur={e => {
+                            const v = parseInt(e.target.value, 10)
+                            if (v >= 2) updateConfig({ maxSuggestionsPerUser: v })
+                          }}
+                          disabled={config.maxSuggestionsPerUser === null}
+                          className="w-14 rounded border border-white/15 bg-white/8 px-2 py-1 font-mono text-[0.68rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
+                        />
+                        <label className="flex cursor-pointer items-center gap-1.5 text-[0.65rem] text-cream/55">
+                          <input
+                            key={`nolimit-suggestions-${String(config.maxSuggestionsPerUser)}`}
+                            type="checkbox"
+                            defaultChecked={config.maxSuggestionsPerUser === null}
+                            onChange={e => updateConfig({ maxSuggestionsPerUser: e.target.checked ? null : 3 })}
+                            className="accent-gold"
+                          />
+                          No limit
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Allow removal */}
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[0.72rem] tracking-[0.03em] text-cream/80">Allow removal</span>
+                      <Toggle
+                        checked={config.allowRemoval}
+                        onChange={() => updateConfig({ allowRemoval: !config.allowRemoval })}
+                      />
+                    </div>
+                    {config.allowRemoval && (
+                      <div className="mt-2.5 flex items-center gap-3 pl-1">
+                        <span className="text-[0.65rem] text-cream/45">Time window</span>
+                        <select
+                          value={config.removalWindowMinutes === null ? 'unlimited' : 'timed'}
+                          onChange={e => updateConfig({
+                            removalWindowMinutes: e.target.value === 'unlimited' ? null : 10,
+                          })}
+                          className="rounded border border-white/15 bg-white/8 px-2 py-1 font-mono text-[0.68rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40"
+                        >
+                          <option value="unlimited">Any time</option>
+                          <option value="timed">Within</option>
+                        </select>
+                        {config.removalWindowMinutes !== null && (
+                          <>
+                            <input
+                              key={config.removalWindowMinutes}
+                              type="number"
+                              min={1}
+                              max={1440}
+                              defaultValue={config.removalWindowMinutes}
+                              onBlur={e => {
+                                const v = parseInt(e.target.value, 10)
+                                if (v >= 1) updateConfig({ removalWindowMinutes: v })
+                              }}
+                              className="w-14 rounded border border-white/15 bg-white/8 px-2 py-1 font-mono text-[0.68rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40"
+                            />
+                            <span className="text-[0.65rem] text-cream/45">min</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            )}
 
             {hostStatus && (
               <p className="mt-2.5 min-h-[18px] text-[0.7rem] tracking-[0.04em] opacity-55">
@@ -359,14 +568,21 @@ export default function PollPage() {
           <h2 className="mb-1 text-[1.15rem] font-bold text-dark" style={{ fontFamily: playfair }}>
             Suggest a Film
           </h2>
-          {data?.hasSubmitted ? (
+
+          {!canStillSuggest ? (
             <p className="flex items-center gap-2 py-2 text-[0.78rem] tracking-[0.04em] text-gold">
-              ✓ Your suggestion has been added.
+              ✓ {maxSuggestions === 1
+                ? 'Your suggestion has been added.'
+                : `You've submitted all ${maxSuggestions} suggestions.`}
             </p>
           ) : (
             <>
               <p className="mb-4.5 text-[0.7rem] tracking-[0.04em] text-brown opacity-50">
-                One suggestion per session
+                {maxSuggestions === null
+                  ? submittedCount > 0 ? `${submittedCount} submitted — add more anytime` : 'Unlimited suggestions'
+                  : maxSuggestions === 1
+                    ? 'One suggestion per session'
+                    : `${submittedCount} of ${maxSuggestions} suggestions used`}
               </p>
               <div className="flex gap-2.5 max-sm:flex-col">
                 <Input
@@ -397,9 +613,20 @@ export default function PollPage() {
 
         {/* ── The Contenders ── */}
         <div>
-          <h2 className="mb-4 text-[1.5rem] font-bold text-dark" style={{ fontFamily: playfair }}>
-            The Contenders
-          </h2>
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-[1.5rem] font-bold text-dark" style={{ fontFamily: playfair }}>
+              The Contenders
+            </h2>
+            {data?.isOpen && maxVotesPerUser !== 1 && (
+              <span className="text-[0.68rem] uppercase tracking-[0.1em] text-brown opacity-45">
+                {maxVotesPerUser === null
+                  ? `${votedFor.size} vote${votedFor.size !== 1 ? 's' : ''} cast`
+                  : remainingVotes > 0
+                    ? `${remainingVotes} vote${remainingVotes !== 1 ? 's' : ''} remaining`
+                    : 'All votes cast'}
+              </span>
+            )}
+          </div>
           {data && data.movies.length > 0 && (
             <p className="mb-5 text-[0.68rem] uppercase tracking-[0.1em] text-brown opacity-45">
               {data.movies.length} film{data.movies.length !== 1 ? 's' : ''} in the running
@@ -412,23 +639,34 @@ export default function PollPage() {
               No films yet — be the first to suggest one!
             </div>
           ) : (
-            data.movies.map((movie, i) => (
-              <MovieCard
-                key={movie.id}
-                rank={i + 1}
-                title={movie.title}
-                votes={movie.votes}
-                maxVotes={maxVotes}
-                posterUrl={movie.posterUrl}
-                isLeader={i === 0 && movie.votes > 0}
-                isVoted={votedFor === movie.id}
-                isVoting={voting === movie.id}
-                canVote={data.isOpen}
-                animationDelay={i * 0.05}
-                onVote={() => vote(movie.id)}
-                onPosterClick={movie.posterUrl ? () => setLightboxPoster({ url: movie.posterUrl!, title: movie.title }) : undefined}
-              />
-            ))
+            data.movies.map((movie, i) => {
+              const isMyMovie = data.submittedMovieIds.includes(movie.id)
+              const withinWindow = config?.removalWindowMinutes === null
+                || (config?.removalWindowMinutes != null
+                  && Date.now() - movie.submittedAt <= config.removalWindowMinutes * 60 * 1000)
+              const canRemove = isMyMovie && (config?.allowRemoval ?? false) && withinWindow
+                && removing !== movie.id
+
+              return (
+                <MovieCard
+                  key={movie.id}
+                  rank={i + 1}
+                  title={movie.title}
+                  votes={movie.votes}
+                  maxVotes={maxVotes}
+                  posterUrl={movie.posterUrl}
+                  isLeader={i === 0 && movie.votes > 0}
+                  isVoted={votedFor.has(movie.id)}
+                  isVoting={voting === movie.id}
+                  canVote={data.isOpen && (votedFor.has(movie.id) || remainingVotes > 0)}
+                  canRemove={canRemove}
+                  animationDelay={i * 0.05}
+                  onVote={() => vote(movie.id)}
+                  onRemove={() => remove(movie.id)}
+                  onPosterClick={movie.posterUrl ? () => setLightboxPoster({ url: movie.posterUrl!, title: movie.title }) : undefined}
+                />
+              )
+            })
           )}
         </div>
       </div>

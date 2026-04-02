@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getPoll, savePoll } from '../../lib/store'
-import { getIP, isValidPollId, runWithLock } from '../../lib/api'
+import { getPoll, savePoll, DEFAULT_CONFIG } from '@/lib/store'
+import { getIP, isValidPollId, runWithLock } from '@/lib/api'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -19,15 +19,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const movie = poll.movies.find(m => m.id === movieId)
     if (!movie) return { status: 404, body: { error: 'Movie not found' } }
 
+    const config = poll.config ?? DEFAULT_CONFIG
+    const maxVotes = config.maxVotesPerUser
+
     if (movie.voters.includes(ip)) {
+      // Toggle off — always allowed
       movie.voters = movie.voters.filter(v => v !== ip)
     } else {
-      for (const m of poll.movies) {
-        if (m !== movie && m.voters.includes(ip)) {
-          m.voters = m.voters.filter(v => v !== ip)
-          m.votes = m.voters.length
+      const currentCount = poll.movies.filter(m => m.voters.includes(ip)).length
+
+      if (maxVotes !== null && currentCount >= maxVotes) {
+        if (maxVotes === 1) {
+          // Single-vote mode: move the vote instead of rejecting
+          for (const m of poll.movies) {
+            if (m !== movie && m.voters.includes(ip)) {
+              m.voters = m.voters.filter(v => v !== ip)
+              m.votes = m.voters.length
+            }
+          }
+        } else {
+          return {
+            status: 409,
+            body: { error: `You can only vote for ${maxVotes} film${maxVotes === 1 ? '' : 's'}` },
+          }
         }
       }
+
       movie.voters.push(ip)
     }
     movie.votes = movie.voters.length

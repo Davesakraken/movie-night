@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getPoll, savePoll, getSubmission, setSubmission, generateMovieId } from '../../lib/store'
-import { getIP, isValidPollId, runWithLock } from '../../lib/api'
+import { getPoll, savePoll, addSubmission, getSubmissions, generateMovieId, DEFAULT_CONFIG } from '@/lib/store'
+import { getIP, isValidPollId, runWithLock } from '@/lib/api'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -22,10 +22,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : undefined
 
   await runWithLock(pollId, res, async () => {
-    const [poll, existing] = await Promise.all([getPoll(pollId), getSubmission(pollId, ip)])
+    const [poll, submissions] = await Promise.all([getPoll(pollId), getSubmissions(pollId, ip)])
     if (!poll) return { status: 404, body: { error: 'Poll not found' } }
     if (!poll.isOpen) return { status: 403, body: { error: 'Voting is closed' } }
-    if (existing) return { status: 409, body: { error: 'You have already submitted a movie this session' } }
+
+    const config = poll.config ?? DEFAULT_CONFIG
+    const max = config.maxSuggestionsPerUser
+    if (max !== null && submissions.length >= max) {
+      return {
+        status: 409,
+        body: {
+          error: max === 1
+            ? 'You have already submitted a movie this session'
+            : `You have reached the maximum of ${max} suggestion${max === 1 ? '' : 's'}`,
+        },
+      }
+    }
 
     const duplicate = poll.movies.find(
       m => m.title.toLowerCase() === title.trim().toLowerCase()
@@ -43,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     poll.movies.push(movie)
-    await Promise.all([savePoll(poll), setSubmission(pollId, ip, movie.id)])
+    await Promise.all([savePoll(poll), addSubmission(pollId, ip, movie.id)])
     return { status: 200, body: { success: true, movie } }
   })
 }

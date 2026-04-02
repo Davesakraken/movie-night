@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getPoll, getSubmission, getHostToken } from '../../lib/store'
+import { getPoll, getSubmissions, getHostToken, DEFAULT_CONFIG } from '@/lib/store'
 
 function getIP(req: NextApiRequest): string {
   const forwarded = req.headers['x-forwarded-for']
@@ -20,21 +20,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!poll) return res.status(404).json({ error: 'Poll not found' })
 
   const ip = getIP(req)
-  const hasSubmitted = await getSubmission(pollId, ip)
-
-  let isHost = false
-  if (hostToken && typeof hostToken === 'string') {
-    const storedToken = await getHostToken(pollId)
-    isHost = storedToken === hostToken
-  }
+  const [submittedMovieIds, isHostResult] = await Promise.all([
+    getSubmissions(pollId, ip),
+    (async () => {
+      if (!hostToken || typeof hostToken !== 'string') return false
+      const storedToken = await getHostToken(pollId)
+      return storedToken === hostToken
+    })(),
+  ])
 
   const sorted = [...poll.movies].sort((a, b) => b.votes - a.votes)
+  const votedMovieIds = sorted.filter(m => m.voters?.includes(ip)).map(m => m.id)
+  const config = poll.config ?? DEFAULT_CONFIG
 
   res.json({
     movies: sorted,
     isOpen: poll.isOpen,
-    hasSubmitted: !!hasSubmitted,
-    submittedMovieId: hasSubmitted || null,
-    isHost,
+    config,
+    hasSubmitted: submittedMovieIds.length > 0,
+    submittedMovieIds,
+    submittedMovieId: submittedMovieIds[0] ?? null,
+    votedMovieIds,
+    isHost: isHostResult,
   })
 }

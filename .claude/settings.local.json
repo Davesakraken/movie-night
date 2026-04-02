@@ -21,7 +21,8 @@
       "Bash(npm ls:*)",
       "Bash(npx shadcn@latest init --help)",
       "Bash(npx shadcn@latest init -d)",
-      "Bash(npx shadcn@latest add alert-dialog input -y)"
+      "Bash(npx shadcn@latest add alert-dialog input -y)",
+      "Bash(grep -n \"from '\\\\.\\\\.\" /home/dave/projects/movie-night-project/pages/api/poll/*.ts /home/dave/projects/movie-night-project/pages/api/movies/search.ts)"
     ],
     "additionalDirectories": [
       "\\home\\dave\\projects\\movie-night-project\\pages",

@@ -13,7 +13,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/create-poll", { method: "POST" });
+      const res = await fetch("/api/poll/create", { method: "POST" });
       if (!res.ok) throw new Error("Failed to create poll");
       const { pollId, hostToken } = await res.json();
       router.push(`/poll/${pollId}?host=${hostToken}`);
