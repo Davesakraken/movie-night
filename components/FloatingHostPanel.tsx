@@ -357,6 +357,52 @@ export function FloatingHostPanel({
                     </div>
                   </div>
 
+                  {/* Password protection */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[0.68rem] tracking-[0.03em] text-cream/80">
+                        Password protection
+                      </span>
+                      <Toggle
+                        checked={
+                          draft?.password !== undefined
+                            ? draft.password !== null
+                            : data.passwordProtected
+                        }
+                        onChange={() =>
+                          patchDraft({
+                            password: (
+                              draft?.password !== undefined
+                                ? draft.password !== null
+                                : data.passwordProtected
+                            )
+                              ? null
+                              : "",
+                          })
+                        }
+                      />
+                    </div>
+                    <div
+                      className={cn(
+                        "transition-opacity",
+                        !(draft?.password !== undefined
+                          ? draft.password !== null
+                          : data.passwordProtected)
+                          ? "pointer-events-none opacity-30"
+                          : "opacity-100",
+                      )}
+                    >
+                      <input
+                        key={`${revertKey}-password`}
+                        type="text"
+                        placeholder="Enter password…"
+                        defaultValue={draft?.password ?? ""}
+                        onChange={(e) => patchDraft({ password: e.target.value || null })}
+                        className="w-full rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40"
+                      />
+                    </div>
+                  </div>
+
                   {/* Allow removal */}
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between gap-3">

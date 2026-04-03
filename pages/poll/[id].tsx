@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Ornament } from "@/components/Ornament";
 import { MovieCard } from "@/components/MovieCard";
 import { FloatingHostPanel } from "@/components/FloatingHostPanel";
+import { PasswordGate } from "@/components/PasswordGate";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { PollConfig, SessionData, PosterModal } from "@/lib/types";
 
@@ -31,6 +32,7 @@ export default function PollPage() {
   const [hostStatus, setHostStatus] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const isDesktop = useMediaQuery("(min-width: 1300px)");
 
@@ -54,6 +56,12 @@ export default function PollPage() {
     const interval = setInterval(fetchSession, 3000);
     return () => clearInterval(interval);
   }, [router.isReady, fetchSession]);
+
+  useEffect(() => {
+    if (!data || !pollId) return;
+    if (!data.passwordProtected || data.isHost) { setHasAccess(true); return; }
+    setHasAccess(sessionStorage.getItem(`poll_access:${pollId}`) === "1");
+  }, [data, pollId]);
 
   async function handleSubmitClick() {
     if (!input.trim()) return;
@@ -216,6 +224,11 @@ export default function PollPage() {
       </Head>
 
       {confirmDialog}
+
+      {/* ── Password gate overlay ── */}
+      {data && data.passwordProtected && !data.isHost && !hasAccess && (
+        <PasswordGate pollId={pollId!} onUnlock={() => setHasAccess(true)} />
+      )}
 
       {/* ── Poster confirmation modal ── */}
       {modal && (

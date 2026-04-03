@@ -15,6 +15,7 @@ export const DEFAULT_CONFIG: PollConfig = {
   allowRemoval: false,
   removalWindowMinutes: null,
   removalEnabledAt: null,
+  password: null,
 };
 
 const TTL = 60 * 60 * 24; // 24 hours
