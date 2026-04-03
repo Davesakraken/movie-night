@@ -26,13 +26,11 @@ function usePinDraft(passwordProtected: boolean) {
   }));
 
   function togglePin() {
-    setPin((p) => {
-      if (p.state === "off")
-        return { ...p, state: "editing", input: "", revertKey: p.revertKey + 1 };
-      if (p.state === "locked")
-        return { state: "off", input: "", revertKey: p.revertKey + 1 };
-      return { state: "off", input: "", revertKey: p.revertKey + 1 };
-    });
+    setPin((p) =>
+      p.state === "off"
+        ? { ...p, state: "editing", input: "", revertKey: p.revertKey + 1 }
+        : { state: "off", input: "", revertKey: p.revertKey + 1 },
+    );
   }
 
   function handlePinInput(val: string) {
