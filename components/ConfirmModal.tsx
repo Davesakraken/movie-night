@@ -1,48 +1,51 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogAction,
-} from '@/components/ui/alert-dialog'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
-const playfair = 'var(--font-playfair, "Playfair Display", serif)'
+const playfair = 'var(--font-playfair, "Playfair Display", serif)';
 
 export interface ConfirmOptions {
-  title: string
-  message: string
-  confirmLabel?: string
-  cancelLabel?: string
-  danger?: boolean
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
 }
 
 interface DialogProps extends ConfirmOptions {
-  onConfirm: () => void
-  onCancel: () => void
+  onConfirm: () => void;
+  onCancel: () => void;
 }
 
 function ConfirmDialog({
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   danger = false,
   onConfirm,
   onCancel,
 }: DialogProps) {
-  const confirmRef = useRef<HTMLButtonElement>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    confirmRef.current?.focus()
-  }, [])
+    confirmRef.current?.focus();
+  }, []);
 
   return (
-    <AlertDialog open onOpenChange={(open) => { if (!open) onCancel() }}>
-      <AlertDialogContent
-        className="max-w-[380px] rounded-xl border border-white/10 bg-dark p-7 ring-0 shadow-[0_24px_60px_rgba(26,18,9,0.6)]"
-      >
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onCancel();
+      }}
+    >
+      <AlertDialogContent className="max-w-[380px] rounded-xl border border-white/10 bg-dark p-7 ring-0 shadow-[0_24px_60px_rgba(26,18,9,0.6)]">
         <AlertDialogTitle
           className="mb-2.5 text-[1.15rem] font-bold leading-snug text-gold"
           style={{ fontFamily: playfair }}
@@ -66,10 +69,8 @@ function ConfirmDialog({
             ref={confirmRef}
             onClick={onConfirm}
             className={cn(
-              'h-auto rounded-md border-none px-4 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] transition-[opacity,transform] duration-100 hover:opacity-80 hover:-translate-y-px',
-              danger
-                ? 'bg-brand-red text-white'
-                : 'bg-white/[0.12] text-cream',
+              "h-auto rounded-md border-none px-4 py-2.5 font-mono text-[0.7rem] uppercase tracking-[0.08em] transition-[opacity,transform] duration-100 hover:opacity-80 hover:-translate-y-px",
+              danger ? "bg-brand-red text-white" : "bg-white/[0.12] text-cream",
             )}
           >
             {confirmLabel}
@@ -77,35 +78,37 @@ function ConfirmDialog({
         </div>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }
 
-type State = ConfirmOptions & { resolve: (v: boolean) => void }
+type State = ConfirmOptions & { resolve: (v: boolean) => void };
 
 export function useConfirm() {
-  const [state, setState] = useState<State | null>(null)
+  const [state, setState] = useState<State | null>(null);
 
   const confirm = useCallback((opts: ConfirmOptions): Promise<boolean> => {
-    return new Promise(resolve => {
-      setState({ ...opts, resolve })
-    })
-  }, [])
+    return new Promise((resolve) => {
+      setState({ ...opts, resolve });
+    });
+  }, []);
 
   const handleConfirm = useCallback(() => {
-    setState(prev => { prev?.resolve(true); return null })
-  }, [])
+    setState((prev) => {
+      prev?.resolve(true);
+      return null;
+    });
+  }, []);
 
   const handleCancel = useCallback(() => {
-    setState(prev => { prev?.resolve(false); return null })
-  }, [])
+    setState((prev) => {
+      prev?.resolve(false);
+      return null;
+    });
+  }, []);
 
   const dialog = state ? (
-    <ConfirmDialog
-      {...state}
-      onConfirm={handleConfirm}
-      onCancel={handleCancel}
-    />
-  ) : null
+    <ConfirmDialog {...state} onConfirm={handleConfirm} onCancel={handleCancel} />
+  ) : null;
 
-  return { confirm, dialog }
+  return { confirm, dialog };
 }
