@@ -1,5 +1,6 @@
 import type { AppProps } from "next/app";
 import { Playfair_Display, DM_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "../styles/globals.css";
 
 const playfair = Playfair_Display({
@@ -17,9 +18,12 @@ const dmMono = DM_Mono({
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    // style="display:contents" removes wrapper from layout while still injecting the CSS font variables
-    <div className={`${playfair.variable} ${dmMono.variable}`} style={{ display: "contents" }}>
-      <Component {...pageProps} />
-    </div>
+    <>
+      <div className={`${playfair.variable} ${dmMono.variable}`} style={{ display: "contents" }}>
+        <Component {...pageProps} />
+      </div>
+
+      <Analytics />
+    </>
   );
 }
