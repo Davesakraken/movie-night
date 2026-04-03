@@ -56,6 +56,8 @@ export function FloatingHostPanel({
 }: FloatingHostPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [draft, setDraft] = useState<Partial<PollConfig> | null>(null);
+  const [revertKey, setRevertKey] = useState(0);
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -104,6 +106,28 @@ export function FloatingHostPanel({
   if (isFloating && pos === null) return null;
 
   const config = data.config;
+  const displayConfig = draft ? { ...config, ...draft } : config;
+
+  function patchDraft(patch: Partial<PollConfig>) {
+    setDraft((d) => {
+      const next = { ...(d ?? {}), ...patch };
+      const isClean = (Object.keys(next) as (keyof PollConfig)[]).every(
+        (k) => next[k] === config[k],
+      );
+      return isClean ? null : next;
+    });
+  }
+
+  async function handleApply() {
+    if (!draft) return;
+    await onUpdateConfig(draft);
+    setDraft(null);
+  }
+
+  function handleRevert() {
+    setDraft(null);
+    setRevertKey((k) => k + 1);
+  }
 
   return (
     <div
@@ -231,40 +255,45 @@ export function FloatingHostPanel({
                         Multiple votes
                       </span>
                       <Toggle
-                        checked={config.maxVotesPerUser !== 1}
+                        checked={displayConfig.maxVotesPerUser !== 1}
                         onChange={() =>
-                          onUpdateConfig({ maxVotesPerUser: config.maxVotesPerUser === 1 ? 3 : 1 })
+                          patchDraft({
+                            maxVotesPerUser: displayConfig.maxVotesPerUser === 1 ? 3 : 1,
+                          })
                         }
                       />
                     </div>
                     <div
                       className={cn(
                         "flex items-center gap-1.5 transition-opacity",
-                        config.maxVotesPerUser === 1
+                        displayConfig.maxVotesPerUser === 1
                           ? "pointer-events-none opacity-30"
                           : "opacity-100",
                       )}
                     >
                       <input
-                        key={String(config.maxVotesPerUser)}
+                        key={`${revertKey}-${String(displayConfig.maxVotesPerUser)}`}
                         type="number"
                         min={2}
                         max={100}
-                        defaultValue={config.maxVotesPerUser ?? 3}
+                        defaultValue={displayConfig.maxVotesPerUser ?? 3}
                         onBlur={(e) => {
                           const v = parseInt(e.target.value, 10);
-                          if (v >= 2) onUpdateConfig({ maxVotesPerUser: v });
+                          if (v >= 2) patchDraft({ maxVotesPerUser: v });
                         }}
-                        disabled={config.maxVotesPerUser === null || config.maxVotesPerUser === 1}
+                        disabled={
+                          displayConfig.maxVotesPerUser === null ||
+                          displayConfig.maxVotesPerUser === 1
+                        }
                         className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
                       />
                       <label className="flex cursor-pointer items-center gap-1 text-[0.62rem] text-cream/55">
                         <input
-                          key={`nolimit-votes-${String(config.maxVotesPerUser)}`}
+                          key={`${revertKey}-nolimit-votes-${String(displayConfig.maxVotesPerUser)}`}
                           type="checkbox"
-                          defaultChecked={config.maxVotesPerUser === null}
+                          defaultChecked={displayConfig.maxVotesPerUser === null}
                           onChange={(e) =>
-                            onUpdateConfig({ maxVotesPerUser: e.target.checked ? null : 3 })
+                            patchDraft({ maxVotesPerUser: e.target.checked ? null : 3 })
                           }
                           className="accent-gold"
                         />
@@ -280,10 +309,11 @@ export function FloatingHostPanel({
                         Multiple suggestions
                       </span>
                       <Toggle
-                        checked={config.maxSuggestionsPerUser !== 1}
+                        checked={displayConfig.maxSuggestionsPerUser !== 1}
                         onChange={() =>
-                          onUpdateConfig({
-                            maxSuggestionsPerUser: config.maxSuggestionsPerUser === 1 ? 3 : 1,
+                          patchDraft({
+                            maxSuggestionsPerUser:
+                              displayConfig.maxSuggestionsPerUser === 1 ? 3 : 1,
                           })
                         }
                       />
@@ -291,34 +321,34 @@ export function FloatingHostPanel({
                     <div
                       className={cn(
                         "flex items-center gap-1.5 transition-opacity",
-                        config.maxSuggestionsPerUser === 1
+                        displayConfig.maxSuggestionsPerUser === 1
                           ? "pointer-events-none opacity-30"
                           : "opacity-100",
                       )}
                     >
                       <input
-                        key={String(config.maxSuggestionsPerUser)}
+                        key={`${revertKey}-${String(displayConfig.maxSuggestionsPerUser)}`}
                         type="number"
                         min={2}
                         max={100}
-                        defaultValue={config.maxSuggestionsPerUser ?? 3}
+                        defaultValue={displayConfig.maxSuggestionsPerUser ?? 3}
                         onBlur={(e) => {
                           const v = parseInt(e.target.value, 10);
-                          if (v >= 2) onUpdateConfig({ maxSuggestionsPerUser: v });
+                          if (v >= 2) patchDraft({ maxSuggestionsPerUser: v });
                         }}
                         disabled={
-                          config.maxSuggestionsPerUser === null ||
-                          config.maxSuggestionsPerUser === 1
+                          displayConfig.maxSuggestionsPerUser === null ||
+                          displayConfig.maxSuggestionsPerUser === 1
                         }
                         className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
                       />
                       <label className="flex cursor-pointer items-center gap-1 text-[0.62rem] text-cream/55">
                         <input
-                          key={`nolimit-suggestions-${String(config.maxSuggestionsPerUser)}`}
+                          key={`${revertKey}-nolimit-suggestions-${String(displayConfig.maxSuggestionsPerUser)}`}
                           type="checkbox"
-                          defaultChecked={config.maxSuggestionsPerUser === null}
+                          defaultChecked={displayConfig.maxSuggestionsPerUser === null}
                           onChange={(e) =>
-                            onUpdateConfig({ maxSuggestionsPerUser: e.target.checked ? null : 3 })
+                            patchDraft({ maxSuggestionsPerUser: e.target.checked ? null : 3 })
                           }
                           className="accent-gold"
                         />
@@ -334,24 +364,26 @@ export function FloatingHostPanel({
                         Allow removal
                       </span>
                       <Toggle
-                        checked={config.allowRemoval}
-                        onChange={() => onUpdateConfig({ allowRemoval: !config.allowRemoval })}
+                        checked={displayConfig.allowRemoval}
+                        onChange={() => patchDraft({ allowRemoval: !displayConfig.allowRemoval })}
                       />
                     </div>
                     <div
                       className={cn(
                         "flex items-center gap-1.5 transition-opacity",
-                        !config.allowRemoval ? "pointer-events-none opacity-30" : "opacity-100",
+                        !displayConfig.allowRemoval
+                          ? "pointer-events-none opacity-30"
+                          : "opacity-100",
                       )}
                     >
                       <select
-                        value={config.removalWindowMinutes === null ? "unlimited" : "timed"}
+                        value={displayConfig.removalWindowMinutes === null ? "unlimited" : "timed"}
                         onChange={(e) =>
-                          onUpdateConfig({
+                          patchDraft({
                             removalWindowMinutes: e.target.value === "unlimited" ? null : 10,
                           })
                         }
-                        disabled={!config.allowRemoval}
+                        disabled={!displayConfig.allowRemoval}
                         className="rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
                       >
                         <option value="unlimited">Any time</option>
@@ -359,25 +391,67 @@ export function FloatingHostPanel({
                       </select>
                       <div
                         style={{
-                          visibility: config.removalWindowMinutes !== null ? "visible" : "hidden",
+                          visibility:
+                            displayConfig.removalWindowMinutes !== null ? "visible" : "hidden",
                         }}
                         className="flex items-center gap-1.5"
                       >
                         <input
-                          key={config.removalWindowMinutes ?? "null"}
+                          key={`${revertKey}-${displayConfig.removalWindowMinutes ?? "null"}`}
                           type="number"
                           min={1}
                           max={1440}
-                          defaultValue={config.removalWindowMinutes ?? 10}
+                          defaultValue={displayConfig.removalWindowMinutes ?? 10}
                           onBlur={(e) => {
                             const v = parseInt(e.target.value, 10);
-                            if (v >= 1) onUpdateConfig({ removalWindowMinutes: v });
+                            if (v >= 1) patchDraft({ removalWindowMinutes: v });
                           }}
-                          disabled={!config.allowRemoval}
+                          disabled={!displayConfig.allowRemoval}
                           className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40"
                         />
                         <span className="text-[0.62rem] text-cream/45">min</span>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Apply / Revert row */}
+                <div
+                  className={cn(
+                    "grid transition-[grid-template-rows] duration-200",
+                    draft ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                  )}
+                >
+                  <div className="overflow-hidden">
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRevert}
+                        title="Revert changes"
+                        className="p-1 text-cream/40 transition-colors hover:text-cream"
+                      >
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                          <path d="M3 3v5h5" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApply}
+                        disabled={hostLoading}
+                        className="rounded-md bg-gold/20 px-3 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.08em] text-gold transition-all hover:bg-gold/30 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {hostLoading ? "..." : "Apply"}
+                      </button>
                     </div>
                   </div>
                 </div>
