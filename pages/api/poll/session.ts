@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getPoll, getSubmissions, getHostToken, DEFAULT_CONFIG } from '@/lib/store'
+import { verifyAccessToken } from '@/lib/api'
 
 function getIP(req: NextApiRequest): string {
   const forwarded = req.headers['x-forwarded-for']
@@ -29,14 +30,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })(),
   ])
 
+  const { password, ...clientConfig } = poll.config ?? DEFAULT_CONFIG
+  const passwordProtected = !!password
+
+  // Gate: if password-protected and not the host, require a valid access token
+  if (passwordProtected && !isHostResult) {
+    const { accessToken } = req.query
+    if (!verifyAccessToken(pollId, accessToken)) {
+      return res.json({ passwordProtected: true, isHost: false, isOpen: poll.isOpen })
+    }
+  }
+
   const sorted = [...poll.movies].sort((a, b) => b.votes - a.votes)
   const votedMovieIds = sorted.filter(m => m.voters?.includes(ip)).map(m => m.id)
-  const config = poll.config ?? DEFAULT_CONFIG
 
   res.json({
     movies: sorted,
     isOpen: poll.isOpen,
-    config,
+    config: clientConfig,
+    passwordProtected,
     hasSubmitted: submittedMovieIds.length > 0,
     submittedMovieIds,
     submittedMovieId: submittedMovieIds[0] ?? null,

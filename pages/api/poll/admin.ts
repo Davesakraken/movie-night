@@ -59,11 +59,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       allowRemoval: nextAllowRemoval,
       removalWindowMinutes: parseLimit(incoming.removalWindowMinutes, current.removalWindowMinutes),
       removalEnabledAt: nextAllowRemoval && !current.allowRemoval ? Date.now() : (nextAllowRemoval ? current.removalEnabledAt : null),
+      password: parsePassword(incoming.password, current.password ?? null),
     }
 
     poll.config = updated
     await savePoll(poll)
-    return { status: 200, body: { success: true, config: updated } }
+    const { password: _pw, ...clientConfig } = updated
+    return { status: 200, body: { success: true, config: clientConfig, passwordProtected: !!updated.password } }
   })
 }
 
@@ -71,5 +73,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 function parseLimit(val: unknown, fallback: number | null): number | null {
   if (val === null) return null
   if (typeof val === 'number' && Number.isInteger(val) && val >= 1) return val
+  return fallback
+}
+
+/** Accepts a 4-digit numeric string (sets PIN), null (clears), or anything else (no change). */
+function parsePassword(val: unknown, fallback: string | null): string | null {
+  if (val === null) return null
+  if (typeof val === 'string' && /^\d{4}$/.test(val.trim())) return val.trim()
   return fallback
 }

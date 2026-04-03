@@ -1,9 +1,61 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { CopyLinkRow } from "@/components/CopyLinkRow";
-import type { PollConfig, SessionData } from "@/lib/types";
+import type { PollConfig, ClientPollConfig, SessionData } from "@/lib/types";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const playfair = 'var(--font-playfair, "Playfair Display", serif)';
+
+// ── PIN state machine ─────────────────────────────────────────────
+type PinState = "off" | "locked" | "editing" | "ready";
+interface PinDraft {
+  state: PinState;
+  input: string;
+  revertKey: number;
+}
+
+function usePinDraft(passwordProtected: boolean) {
+  // Ref so all functions always read the current prop, not the stale closure value
+  const ppRef = useRef(passwordProtected);
+  ppRef.current = passwordProtected;
+
+  const [pin, setPin] = useState<PinDraft>(() => ({
+    state: passwordProtected ? "locked" : "off",
+    input: "",
+    revertKey: 0,
+  }));
+
+  function togglePin() {
+    setPin((p) =>
+      p.state === "off"
+        ? { ...p, state: "editing", input: "", revertKey: p.revertKey + 1 }
+        : { state: "off", input: "", revertKey: p.revertKey + 1 },
+    );
+  }
+
+  function handlePinInput(val: string) {
+    setPin((p) => ({ ...p, input: val, state: val.length === 4 ? "ready" : "editing" }));
+  }
+
+  function getPinPatch(): { password: string | null } | undefined {
+    if (pin.state === "off" && ppRef.current) return { password: null };
+    if (pin.state === "ready") return { password: pin.input };
+    return undefined;
+  }
+
+  function resetPin(newPasswordProtected: boolean, preserveInput?: string) {
+    setPin((p) => ({
+      state: newPasswordProtected ? "locked" : "off",
+      input: preserveInput ?? "",
+      revertKey: p.revertKey + 1,
+    }));
+  }
+
+  const pinIsReady = (pin.state === "off" && ppRef.current) || pin.state === "ready";
+  const pinBlocksApply = pin.state === "editing";
+
+  return { pin, togglePin, handlePinInput, getPinPatch, pinIsReady, pinBlocksApply, resetPin };
+}
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
@@ -56,8 +108,10 @@ export function FloatingHostPanel({
 }: FloatingHostPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const [draft, setDraft] = useState<Partial<PollConfig> | null>(null);
+  const [draft, setDraft] = useState<Partial<ClientPollConfig> | null>(null);
   const [revertKey, setRevertKey] = useState(0);
+  const { pin, togglePin, handlePinInput, getPinPatch, pinIsReady, pinBlocksApply, resetPin } =
+    usePinDraft(data.passwordProtected);
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -107,26 +161,34 @@ export function FloatingHostPanel({
 
   const config = data.config;
   const displayConfig = draft ? { ...config, ...draft } : config;
+  const draftReady = (draft !== null || pinIsReady) && !pinBlocksApply;
 
-  function patchDraft(patch: Partial<PollConfig>) {
+  function patchDraft(patch: Partial<ClientPollConfig>) {
     setDraft((d) => {
       const next = { ...(d ?? {}), ...patch };
-      const isClean = (Object.keys(next) as (keyof PollConfig)[]).every(
-        (k) => next[k] === config[k],
+      const isClean = (Object.keys(next) as (keyof ClientPollConfig)[]).every(
+        (k) => next[k] === (config as Record<string, unknown>)[k],
       );
       return isClean ? null : next;
     });
   }
 
   async function handleApply() {
-    if (!draft) return;
-    await onUpdateConfig(draft);
+    if (!draftReady) return;
+    const pinPatch = getPinPatch();
+    const patch: Partial<PollConfig> = { ...(draft ?? {}), ...(pinPatch ?? {}) };
+    await onUpdateConfig(patch);
     setDraft(null);
+    const nextProtected =
+      pinPatch === undefined ? data.passwordProtected : pinPatch.password === null ? false : true;
+    const preserveInput = pinPatch?.password ?? undefined;
+    resetPin(nextProtected, preserveInput === null ? undefined : preserveInput);
   }
 
   function handleRevert() {
     setDraft(null);
     setRevertKey((k) => k + 1);
+    resetPin(data.passwordProtected);
   }
 
   return (
@@ -235,11 +297,45 @@ export function FloatingHostPanel({
 
             {/* Share link */}
             <CopyLinkRow
-              label="Guest"
+              label="Invite"
               url={shareUrl}
               copied={copied === "share"}
               onCopy={() => onCopy(shareUrl, "share")}
             />
+
+            {/* Pin protection */}
+            <div className="mt-3 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[0.68rem] tracking-[0.03em] text-cream/80">
+                  Pin protection
+                </span>
+                <Toggle checked={pin.state !== "off"} onChange={togglePin} />
+              </div>
+              <div
+                className={cn(
+                  "transition-opacity",
+                  pin.state === "off" ? "opacity-30" : "opacity-100",
+                )}
+              >
+                <InputOTP
+                  key={`pin-${pin.revertKey}`}
+                  maxLength={4}
+                  value={pin.input}
+                  onChange={handlePinInput}
+                  disabled={pin.state === "locked" || pin.state === "off"}
+                  autoFocus={pin.state === "editing"}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                >
+                  <InputOTPGroup className="gap-1.5 *:data-[slot=input-otp-slot]:h-7 *:data-[slot=input-otp-slot]:w-7 *:data-[slot=input-otp-slot]:rounded *:data-[slot=input-otp-slot]:border *:data-[slot=input-otp-slot]:border-white/15 *:data-[slot=input-otp-slot]:bg-white/8 *:data-[slot=input-otp-slot]:font-mono *:data-[slot=input-otp-slot]:text-[0.65rem] *:data-[slot=input-otp-slot]:text-cream">
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+            </div>
 
             {/* Poll Settings */}
             {config && (
@@ -419,7 +515,7 @@ export function FloatingHostPanel({
                 <div
                   className={cn(
                     "grid transition-[grid-template-rows] duration-200",
-                    draft ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                    draftReady ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                   )}
                 >
                   <div className="overflow-hidden">
@@ -447,7 +543,7 @@ export function FloatingHostPanel({
                       <button
                         type="button"
                         onClick={handleApply}
-                        disabled={hostLoading}
+                        disabled={hostLoading || !draftReady}
                         className="rounded-md bg-gold/20 px-3 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.08em] text-gold transition-all hover:bg-gold/30 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {hostLoading ? "..." : "Apply"}

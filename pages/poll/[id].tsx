@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import type { GetServerSideProps } from "next";
 import { useConfirm } from "../../components/ConfirmModal";
 import { Input } from "@/components/ui/input";
 import { Ornament } from "@/components/Ornament";
 import { MovieCard } from "@/components/MovieCard";
 import { FloatingHostPanel } from "@/components/FloatingHostPanel";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { getPoll } from "@/lib/store";
+import { verifyAccessToken } from "@/lib/api";
 import type { PollConfig, SessionData, PosterModal } from "@/lib/types";
 
 const playfair = 'var(--font-playfair, "Playfair Display", serif)';
@@ -155,7 +158,7 @@ export default function PollPage() {
         setData((prev) => (prev ? { ...prev, isOpen: json.isOpen } : prev));
       }
       if (json.config) {
-        setData((prev) => (prev ? { ...prev, config: json.config } : prev));
+        setData((prev) => (prev ? { ...prev, config: json.config, ...(json.passwordProtected !== undefined ? { passwordProtected: json.passwordProtected } : {}) } : prev));
       }
       if (act === "reset") fetchSession();
       if (hostStatus) setTimeout(() => setHostStatus(""), 3000);
@@ -175,14 +178,14 @@ export default function PollPage() {
 
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/poll/${pollId}` : "";
 
-  const maxVotes = data ? Math.max(...data.movies.map((m) => m.votes), 1) : 1;
+  const maxVotes = data ? Math.max(...(data.movies ?? []).map((m) => m.votes), 1) : 1;
   const busy = submitting || fetchingPoster;
 
   const config = data?.config;
   const maxVotesPerUser = config ? config.maxVotesPerUser : 1;
   const remainingVotes = maxVotesPerUser === null ? Infinity : maxVotesPerUser - votedFor.size;
   const maxSuggestions = config ? config.maxSuggestionsPerUser : 1;
-  const submittedCount = data?.submittedMovieIds.length ?? 0;
+  const submittedCount = data?.submittedMovieIds?.length ?? 0;
   const canStillSuggest = maxSuggestions === null || submittedCount < maxSuggestions;
 
   if (notFound) {
@@ -419,20 +422,20 @@ export default function PollPage() {
               </span>
             )}
           </div>
-          {data && data.movies.length > 0 && (
+          {data && (data.movies ?? []).length > 0 && (
             <p className="mb-5 text-[0.68rem] uppercase tracking-[0.1em] text-brown opacity-45">
-              {data.movies.length} film{data.movies.length !== 1 ? "s" : ""} in the running
+              {(data.movies ?? []).length} film{(data.movies ?? []).length !== 1 ? "s" : ""} in the running
             </p>
           )}
 
-          {!data || data.movies.length === 0 ? (
+          {!data || (data.movies ?? []).length === 0 ? (
             <div className="px-6 py-[52px] text-center text-[0.78rem] leading-[1.8] tracking-[0.1em] opacity-35">
               <div className="mb-3.5 text-[2.2rem]">🎞</div>
               No films yet — be the first to suggest one!
             </div>
           ) : (
-            data.movies.map((movie, i) => {
-              const isMyMovie = data.submittedMovieIds.includes(movie.id);
+            (data.movies ?? []).map((movie, i) => {
+              const isMyMovie = (data.submittedMovieIds ?? []).includes(movie.id);
               const windowStart = Math.max(movie.submittedAt, config?.removalEnabledAt ?? 0);
               const withinWindow =
                 config?.removalWindowMinutes === null ||
@@ -474,3 +477,28 @@ export default function PollPage() {
     </>
   );
 }
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const { id } = ctx.params as { id: string };
+
+  const poll = await getPoll(id);
+  if (!poll) return { props: {} };
+
+  const password = poll.config?.password;
+  if (!password) return { props: {} };
+
+  // Host bypass — if ?host= is in the query, let the page handle auth itself
+  if (ctx.query.host) return { props: {} };
+
+  // Check for a valid signed cookie
+  const cookieToken = ctx.req.cookies[`poll_access_${id}`];
+  if (verifyAccessToken(id, cookieToken)) return { props: {} };
+
+  // No valid token — redirect to home with locked param
+  return {
+    redirect: {
+      destination: `/?locked=${id}`,
+      permanent: false,
+    },
+  };
+};
