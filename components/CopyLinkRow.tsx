@@ -8,7 +8,7 @@ interface CopyLinkRowProps {
 export function CopyLinkRow({ label, url, copied, onCopy }: CopyLinkRowProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-[34px] shrink-0 font-mono text-[0.65rem] uppercase tracking-[0.08em] text-cream/40">
+      <span className="w-[42px] shrink-0 font-mono text-[0.65rem] uppercase tracking-[0.08em] text-cream/40">
         {label}
       </span>
       <div className="flex flex-1 items-center overflow-hidden rounded-md border border-white/[0.08] bg-black/35">

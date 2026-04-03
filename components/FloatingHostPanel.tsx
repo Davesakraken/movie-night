@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { CopyLinkRow } from "@/components/CopyLinkRow";
 import type { PollConfig, SessionData } from "@/lib/types";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const playfair = 'var(--font-playfair, "Playfair Display", serif)';
 
@@ -58,6 +59,7 @@ export function FloatingHostPanel({
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<Partial<PollConfig> | null>(null);
   const [revertKey, setRevertKey] = useState(0);
+  const [pinInput, setPinInput] = useState("");
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -107,6 +109,12 @@ export function FloatingHostPanel({
 
   const config = data.config;
   const displayConfig = draft ? { ...config, ...draft } : config;
+  const pinOn = draft?.password !== undefined ? draft.password !== null : data.passwordProtected;
+  // Draft is ready to apply when: turning PIN off (draft.password === null, pinOn false)
+  // or a complete 4-digit PIN has been entered (draft.password is a 4-char string)
+  // Draft is not ready only when the sole pending change is an incomplete PIN (sentinel "" or null while pinOn)
+  const pinIncomplete = pinOn && (draft?.password === "" || (draft?.password === null && "password" in (draft ?? {})));
+  const draftReady = draft !== null && !pinIncomplete;
 
   function patchDraft(patch: Partial<PollConfig>) {
     setDraft((d) => {
@@ -122,13 +130,16 @@ export function FloatingHostPanel({
   }
 
   async function handleApply() {
-    if (!draft) return;
+    if (!draftReady) return;
+    const turningOff = draft!.password === null;
     await onUpdateConfig(draft);
     setDraft(null);
+    if (turningOff) setPinInput("");
   }
 
   function handleRevert() {
     setDraft(null);
+    setPinInput("");
     setRevertKey((k) => k + 1);
   }
 
@@ -238,11 +249,63 @@ export function FloatingHostPanel({
 
             {/* Share link */}
             <CopyLinkRow
-              label="Guest"
+              label="Invite"
               url={shareUrl}
               copied={copied === "share"}
               onCopy={() => onCopy(shareUrl, "share")}
             />
+
+            {/* Pin protection */}
+            <div className="mt-3 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[0.68rem] tracking-[0.03em] text-cream/80">
+                  Pin protection
+                </span>
+                <Toggle
+                  checked={pinOn}
+                  onChange={() => {
+                    setPinInput("");
+                    patchDraft({ password: pinOn ? null : "" });
+                  }}
+                />
+              </div>
+              <div
+                className={cn(
+                  "transition-opacity",
+                  !pinOn ? "pointer-events-none opacity-30" : "opacity-100",
+                )}
+              >
+                <InputOTP
+                  key={`${revertKey}-password`}
+                  maxLength={4}
+                  value={pinInput}
+                  onChange={(val) => {
+                    setPinInput(val);
+                    if (val.length === 4) {
+                      // Complete PIN — write to draft
+                      patchDraft({ password: val });
+                    } else if (data.passwordProtected) {
+                      // Partial/cleared on existing PIN — mark incomplete
+                      patchDraft({ password: null });
+                    } else {
+                      // Partial/cleared while setting a new PIN — reset to sentinel so draft.password
+                      // is never a stale complete value and toggle stays on
+                      setDraft((d) => d ? { ...d, password: "" } : { password: "" });
+                    }
+                  }}
+                  disabled={!pinOn || (data.passwordProtected && draft?.password === undefined)}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                >
+                  <InputOTPGroup className="gap-1.5 *:data-[slot=input-otp-slot]:h-7 *:data-[slot=input-otp-slot]:w-7 *:data-[slot=input-otp-slot]:rounded *:data-[slot=input-otp-slot]:border *:data-[slot=input-otp-slot]:border-white/15 *:data-[slot=input-otp-slot]:bg-white/8 *:data-[slot=input-otp-slot]:font-mono *:data-[slot=input-otp-slot]:text-[0.65rem] *:data-[slot=input-otp-slot]:text-cream">
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+            </div>
 
             {/* Poll Settings */}
             {config && (
@@ -360,52 +423,6 @@ export function FloatingHostPanel({
                     </div>
                   </div>
 
-                  {/* Password protection */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[0.68rem] tracking-[0.03em] text-cream/80">
-                        Password protection
-                      </span>
-                      <Toggle
-                        checked={
-                          draft?.password !== undefined
-                            ? draft.password !== null
-                            : data.passwordProtected
-                        }
-                        onChange={() =>
-                          patchDraft({
-                            password: (
-                              draft?.password !== undefined
-                                ? draft.password !== null
-                                : data.passwordProtected
-                            )
-                              ? null
-                              : "",
-                          })
-                        }
-                      />
-                    </div>
-                    <div
-                      className={cn(
-                        "transition-opacity",
-                        !(draft?.password !== undefined
-                          ? draft.password !== null
-                          : data.passwordProtected)
-                          ? "pointer-events-none opacity-30"
-                          : "opacity-100",
-                      )}
-                    >
-                      <input
-                        key={`${revertKey}-password`}
-                        type="text"
-                        placeholder="Enter password…"
-                        defaultValue={draft?.password ?? ""}
-                        onChange={(e) => patchDraft({ password: e.target.value || null })}
-                        className="w-full rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40"
-                      />
-                    </div>
-                  </div>
-
                   {/* Allow removal */}
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between gap-3">
@@ -468,7 +485,7 @@ export function FloatingHostPanel({
                 <div
                   className={cn(
                     "grid transition-[grid-template-rows] duration-200",
-                    draft ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                    draftReady ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                   )}
                 >
                   <div className="overflow-hidden">
@@ -496,7 +513,7 @@ export function FloatingHostPanel({
                       <button
                         type="button"
                         onClick={handleApply}
-                        disabled={hostLoading}
+                        disabled={hostLoading || !draftReady}
                         className="rounded-md bg-gold/20 px-3 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.08em] text-gold transition-all hover:bg-gold/30 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {hostLoading ? "..." : "Apply"}

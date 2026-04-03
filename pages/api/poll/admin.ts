@@ -76,9 +76,9 @@ function parseLimit(val: unknown, fallback: number | null): number | null {
   return fallback
 }
 
-/** Accepts a non-empty string (sets password), null (clears password), or undefined (no change). */
+/** Accepts a 4-digit numeric string (sets PIN), null (clears), or anything else (no change). */
 function parsePassword(val: unknown, fallback: string | null): string | null {
   if (val === null) return null
-  if (typeof val === 'string' && val.trim().length > 0) return val.trim()
+  if (typeof val === 'string' && /^\d{4}$/.test(val.trim())) return val.trim()
   return fallback
 }

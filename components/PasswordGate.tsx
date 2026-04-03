@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { Ornament } from "@/components/Ornament";
-import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const playfair = 'var(--font-playfair, "Playfair Display", serif)';
 
@@ -17,16 +17,15 @@ export function PasswordGate({ pollId, redirectTo }: Props) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!password.trim()) return;
+  async function handleSubmit(pin: string) {
+    if (pin.length !== 4) return;
     setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/poll/verify-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pollId, password }),
+        body: JSON.stringify({ pollId, password: pin }),
       });
       if (res.ok) {
         const json = await res.json();
@@ -35,7 +34,8 @@ export function PasswordGate({ pollId, redirectTo }: Props) {
         router.push(redirectTo ?? `/poll/${pollId}`);
       } else {
         const json = await res.json();
-        setError(json.error || "Incorrect password");
+        setError(json.error || "Incorrect PIN");
+        setPassword("");
         setLoading(false);
       }
     } catch {
@@ -47,38 +47,40 @@ export function PasswordGate({ pollId, redirectTo }: Props) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-dark/60 px-5 backdrop-blur-md">
       <div className="w-full max-w-[300px] rounded-xl bg-white px-7 py-8 text-center shadow-[0_24px_64px_rgba(26,18,9,0.45)]">
-        <Ornament className="mb-4" />
-        <p className="mb-1 text-[0.65rem] uppercase tracking-[0.2em] text-brown opacity-45">
-          Password required
-        </p>
+        <Ornament className="mb-1" />
         <h2
-          className="mb-6 text-[1.4rem] font-black leading-none tracking-tight text-dark"
+          className="mb-2 text-[1.4rem] font-black leading-none tracking-tight text-dark"
           style={{ fontFamily: playfair }}
         >
           Movie <em className="italic text-brand-red">Night</em>
         </h2>
+        <p className="mb-4 text-[0.65rem] uppercase tracking-[0.2em] text-brown opacity-45">
+          Pin required
+        </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <Input
-            type="password"
-            placeholder="Enter password…"
+        <div className="flex flex-col items-center gap-3">
+          <InputOTP
+            maxLength={4}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoFocus
+            onChange={(val) => {
+              setPassword(val);
+              setError("");
+            }}
+            onComplete={handleSubmit}
             disabled={loading}
-            className="text-center"
-          />
-          {error && (
-            <p className="text-[0.72rem] text-brand-red">{error}</p>
-          )}
-          <button
-            type="submit"
-            disabled={loading || !password.trim()}
-            className="rounded-md bg-dark px-4 py-2.5 font-mono text-[0.72rem] uppercase tracking-[0.1em] text-cream transition-opacity hover:opacity-80 disabled:opacity-40"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoFocus
           >
-            {loading ? "Checking…" : "Enter"}
-          </button>
-        </form>
+            <InputOTPGroup className="gap-2 *:data-[slot=input-otp-slot]:rounded-md *:data-[slot=input-otp-slot]:border">
+              <InputOTPSlot index={0} />
+              <InputOTPSlot index={1} />
+              <InputOTPSlot index={2} />
+              <InputOTPSlot index={3} />
+            </InputOTPGroup>
+          </InputOTP>
+          {error && <p className="text-[0.72rem] text-brand-red">{error}</p>}
+        </div>
       </div>
     </div>
   );
