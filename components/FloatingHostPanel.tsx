@@ -1,10 +1,59 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { CopyLinkRow } from "@/components/CopyLinkRow";
-import type { PollConfig, SessionData } from "@/lib/types";
+import type { PollConfig, ClientPollConfig, SessionData } from "@/lib/types";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const playfair = 'var(--font-playfair, "Playfair Display", serif)';
+
+// ── PIN state machine ─────────────────────────────────────────────
+type PinState = "off" | "locked" | "editing" | "ready";
+interface PinDraft {
+  state: PinState;
+  input: string;
+  revertKey: number;
+}
+
+function usePinDraft(passwordProtected: boolean) {
+  const [pin, setPin] = useState<PinDraft>(() => ({
+    state: passwordProtected ? "locked" : "off",
+    input: "",
+    revertKey: 0,
+  }));
+
+  function togglePin() {
+    setPin((p) => {
+      if (p.state === "off")
+        return { ...p, state: passwordProtected ? "locked" : "editing", input: "" };
+      if (p.state === "locked")
+        return { ...p, state: "editing", input: "", revertKey: p.revertKey + 1 };
+      return { state: "off", input: "", revertKey: p.revertKey + 1 };
+    });
+  }
+
+  function handlePinInput(val: string) {
+    setPin((p) => ({ ...p, input: val, state: val.length === 4 ? "ready" : "editing" }));
+  }
+
+  function getPinPatch(): { password: string | null } | undefined {
+    if (pin.state === "off" && passwordProtected) return { password: null };
+    if (pin.state === "ready") return { password: pin.input };
+    return undefined;
+  }
+
+  function resetPin(newPasswordProtected: boolean) {
+    setPin((p) => ({
+      state: newPasswordProtected ? "locked" : "off",
+      input: "",
+      revertKey: p.revertKey + 1,
+    }));
+  }
+
+  const pinIsReady = (pin.state === "off" && passwordProtected) || pin.state === "ready";
+  const pinBlocksApply = pin.state === "editing";
+
+  return { pin, togglePin, handlePinInput, getPinPatch, pinIsReady, pinBlocksApply, resetPin };
+}
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
@@ -57,9 +106,10 @@ export function FloatingHostPanel({
 }: FloatingHostPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const [draft, setDraft] = useState<Partial<PollConfig> | null>(null);
+  const [draft, setDraft] = useState<Partial<ClientPollConfig> | null>(null);
   const [revertKey, setRevertKey] = useState(0);
-  const [pinInput, setPinInput] = useState("");
+  const { pin, togglePin, handlePinInput, getPinPatch, pinIsReady, pinBlocksApply, resetPin } =
+    usePinDraft(data.passwordProtected);
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -109,38 +159,33 @@ export function FloatingHostPanel({
 
   const config = data.config;
   const displayConfig = draft ? { ...config, ...draft } : config;
-  const pinOn = draft?.password !== undefined ? draft.password !== null : data.passwordProtected;
-  // Draft is ready to apply when: turning PIN off (draft.password === null, pinOn false)
-  // or a complete 4-digit PIN has been entered (draft.password is a 4-char string)
-  // Draft is not ready only when the sole pending change is an incomplete PIN (sentinel "" or null while pinOn)
-  const pinIncomplete = pinOn && (draft?.password === "" || (draft?.password === null && "password" in (draft ?? {})));
-  const draftReady = draft !== null && !pinIncomplete;
+  const draftReady = (draft !== null || pinIsReady) && !pinBlocksApply;
 
-  function patchDraft(patch: Partial<PollConfig>) {
+  function patchDraft(patch: Partial<ClientPollConfig>) {
     setDraft((d) => {
       const next = { ...(d ?? {}), ...patch };
-      const isClean = (Object.keys(next) as (keyof PollConfig)[]).every((k) => {
-        if (k === "password") {
-          return next[k] === null ? !data.passwordProtected : false;
-        }
-        return next[k] === (config as Record<string, unknown>)[k];
-      });
+      const isClean = (Object.keys(next) as (keyof ClientPollConfig)[]).every(
+        (k) => next[k] === (config as Record<string, unknown>)[k],
+      );
       return isClean ? null : next;
     });
   }
 
   async function handleApply() {
     if (!draftReady) return;
-    const turningOff = draft!.password === null;
-    await onUpdateConfig(draft);
+    const pinPatch = getPinPatch();
+    const patch: Partial<PollConfig> = { ...(draft ?? {}), ...(pinPatch ?? {}) };
+    await onUpdateConfig(patch);
     setDraft(null);
-    if (turningOff) setPinInput("");
+    const nextProtected =
+      pinPatch === undefined ? data.passwordProtected : pinPatch.password === null ? false : true;
+    resetPin(nextProtected);
   }
 
   function handleRevert() {
     setDraft(null);
-    setPinInput("");
     setRevertKey((k) => k + 1);
+    resetPin(data.passwordProtected);
   }
 
   return (
@@ -261,39 +306,20 @@ export function FloatingHostPanel({
                 <span className="text-[0.68rem] tracking-[0.03em] text-cream/80">
                   Pin protection
                 </span>
-                <Toggle
-                  checked={pinOn}
-                  onChange={() => {
-                    setPinInput("");
-                    patchDraft({ password: pinOn ? null : "" });
-                  }}
-                />
+                <Toggle checked={pin.state !== "off"} onChange={togglePin} />
               </div>
               <div
                 className={cn(
                   "transition-opacity",
-                  !pinOn ? "pointer-events-none opacity-30" : "opacity-100",
+                  pin.state === "off" ? "pointer-events-none opacity-30" : "opacity-100",
                 )}
               >
                 <InputOTP
-                  key={`${revertKey}-password`}
+                  key={`pin-${pin.revertKey}`}
                   maxLength={4}
-                  value={pinInput}
-                  onChange={(val) => {
-                    setPinInput(val);
-                    if (val.length === 4) {
-                      // Complete PIN — write to draft
-                      patchDraft({ password: val });
-                    } else if (data.passwordProtected) {
-                      // Partial/cleared on existing PIN — mark incomplete
-                      patchDraft({ password: null });
-                    } else {
-                      // Partial/cleared while setting a new PIN — reset to sentinel so draft.password
-                      // is never a stale complete value and toggle stays on
-                      setDraft((d) => d ? { ...d, password: "" } : { password: "" });
-                    }
-                  }}
-                  disabled={!pinOn || (data.passwordProtected && draft?.password === undefined)}
+                  value={pin.input}
+                  onChange={handlePinInput}
+                  disabled={pin.state === "locked" || pin.state === "off"}
                   inputMode="numeric"
                   pattern="[0-9]*"
                 >
