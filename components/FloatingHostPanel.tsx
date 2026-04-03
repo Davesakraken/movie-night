@@ -15,6 +15,10 @@ interface PinDraft {
 }
 
 function usePinDraft(passwordProtected: boolean) {
+  // Ref so all functions always read the current prop, not the stale closure value
+  const ppRef = useRef(passwordProtected);
+  ppRef.current = passwordProtected;
+
   const [pin, setPin] = useState<PinDraft>(() => ({
     state: passwordProtected ? "locked" : "off",
     input: "",
@@ -24,9 +28,9 @@ function usePinDraft(passwordProtected: boolean) {
   function togglePin() {
     setPin((p) => {
       if (p.state === "off")
-        return { ...p, state: passwordProtected ? "locked" : "editing", input: "" };
-      if (p.state === "locked")
         return { ...p, state: "editing", input: "", revertKey: p.revertKey + 1 };
+      if (p.state === "locked")
+        return { state: "off", input: "", revertKey: p.revertKey + 1 };
       return { state: "off", input: "", revertKey: p.revertKey + 1 };
     });
   }
@@ -36,20 +40,20 @@ function usePinDraft(passwordProtected: boolean) {
   }
 
   function getPinPatch(): { password: string | null } | undefined {
-    if (pin.state === "off" && passwordProtected) return { password: null };
+    if (pin.state === "off" && ppRef.current) return { password: null };
     if (pin.state === "ready") return { password: pin.input };
     return undefined;
   }
 
-  function resetPin(newPasswordProtected: boolean) {
+  function resetPin(newPasswordProtected: boolean, preserveInput?: string) {
     setPin((p) => ({
       state: newPasswordProtected ? "locked" : "off",
-      input: "",
+      input: preserveInput ?? "",
       revertKey: p.revertKey + 1,
     }));
   }
 
-  const pinIsReady = (pin.state === "off" && passwordProtected) || pin.state === "ready";
+  const pinIsReady = (pin.state === "off" && ppRef.current) || pin.state === "ready";
   const pinBlocksApply = pin.state === "editing";
 
   return { pin, togglePin, handlePinInput, getPinPatch, pinIsReady, pinBlocksApply, resetPin };
@@ -179,7 +183,8 @@ export function FloatingHostPanel({
     setDraft(null);
     const nextProtected =
       pinPatch === undefined ? data.passwordProtected : pinPatch.password === null ? false : true;
-    resetPin(nextProtected);
+    const preserveInput = pinPatch?.password ?? undefined;
+    resetPin(nextProtected, preserveInput === null ? undefined : preserveInput);
   }
 
   function handleRevert() {
@@ -311,7 +316,7 @@ export function FloatingHostPanel({
               <div
                 className={cn(
                   "transition-opacity",
-                  pin.state === "off" ? "pointer-events-none opacity-30" : "opacity-100",
+                  pin.state === "off" ? "opacity-30" : "opacity-100",
                 )}
               >
                 <InputOTP
@@ -320,6 +325,7 @@ export function FloatingHostPanel({
                   value={pin.input}
                   onChange={handlePinInput}
                   disabled={pin.state === "locked" || pin.state === "off"}
+                  autoFocus={pin.state === "editing"}
                   inputMode="numeric"
                   pattern="[0-9]*"
                 >
