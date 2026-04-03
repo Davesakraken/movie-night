@@ -3,11 +3,13 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { cn } from "@/lib/utils";
 import { Ornament } from "@/components/Ornament";
+import { PasswordGate } from "@/components/PasswordGate";
 
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const lockedPollId = router.query.locked as string | undefined;
 
   async function handleHostPoll() {
     setLoading(true);
@@ -28,6 +30,8 @@ export default function Home() {
       <Head>
         <title>Movie Night</title>
       </Head>
+
+      {lockedPollId && <PasswordGate pollId={lockedPollId} />}
 
       <div className="flex min-h-screen items-center justify-center">
         <div className="w-full max-w-[480px] px-6 py-12 text-center">

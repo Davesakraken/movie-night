@@ -111,9 +111,12 @@ export function FloatingHostPanel({
   function patchDraft(patch: Partial<PollConfig>) {
     setDraft((d) => {
       const next = { ...(d ?? {}), ...patch };
-      const isClean = (Object.keys(next) as (keyof PollConfig)[]).every(
-        (k) => next[k] === config[k],
-      );
+      const isClean = (Object.keys(next) as (keyof PollConfig)[]).every((k) => {
+        if (k === "password") {
+          return next[k] === null ? !data.passwordProtected : false;
+        }
+        return next[k] === (config as Record<string, unknown>)[k];
+      });
       return isClean ? null : next;
     });
   }

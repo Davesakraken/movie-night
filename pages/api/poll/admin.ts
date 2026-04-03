@@ -65,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     poll.config = updated
     await savePoll(poll)
     const { password: _pw, ...clientConfig } = updated
-    return { status: 200, body: { success: true, config: clientConfig } }
+    return { status: 200, body: { success: true, config: clientConfig, passwordProtected: !!updated.password } }
   })
 }
 

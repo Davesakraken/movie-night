@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
 import { Ornament } from "@/components/Ornament";
 import { Input } from "@/components/ui/input";
 
@@ -6,10 +7,12 @@ const playfair = 'var(--font-playfair, "Playfair Display", serif)';
 
 interface Props {
   pollId: string;
-  onUnlock: (token: string) => void;
+  /** Where to navigate after a successful unlock. Defaults to /poll/[pollId]. */
+  redirectTo?: string;
 }
 
-export function PasswordGate({ pollId, onUnlock }: Props) {
+export function PasswordGate({ pollId, redirectTo }: Props) {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,15 +30,16 @@ export function PasswordGate({ pollId, onUnlock }: Props) {
       });
       if (res.ok) {
         const json = await res.json();
-        sessionStorage.setItem(`poll_access:${pollId}`, json.accessToken);
-        onUnlock(json.accessToken);
+        // Set a cookie so getServerSideProps lets them through
+        document.cookie = `poll_access_${pollId}=${json.accessToken}; path=/; max-age=86400; SameSite=Strict`;
+        router.push(redirectTo ?? `/poll/${pollId}`);
       } else {
         const json = await res.json();
         setError(json.error || "Incorrect password");
+        setLoading(false);
       }
     } catch {
       setError("Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
     }
   }
