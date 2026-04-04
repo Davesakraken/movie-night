@@ -381,7 +381,7 @@ export function FloatingHostPanel({
                           displayConfig.maxVotesPerUser === null ||
                           displayConfig.maxVotesPerUser === 1
                         }
-                        className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
+                        className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream [appearance:textfield] focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
                       <label className="flex cursor-pointer items-center gap-1 text-[0.62rem] text-cream/55">
                         <input
@@ -436,7 +436,7 @@ export function FloatingHostPanel({
                           displayConfig.maxSuggestionsPerUser === null ||
                           displayConfig.maxSuggestionsPerUser === 1
                         }
-                        className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
+                        className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream [appearance:textfield] focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
                       <label className="flex cursor-pointer items-center gap-1 text-[0.62rem] text-cream/55">
                         <input
@@ -480,7 +480,7 @@ export function FloatingHostPanel({
                           })
                         }
                         disabled={!displayConfig.allowRemoval}
-                        className="rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
+                        className="rounded border border-white/15 bg-dark px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40 disabled:opacity-30"
                       >
                         <option value="unlimited">Any time</option>
                         <option value="timed">Within</option>
@@ -503,7 +503,7 @@ export function FloatingHostPanel({
                             if (v >= 1) patchDraft({ removalWindowMinutes: v });
                           }}
                           disabled={!displayConfig.allowRemoval}
-                          className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream focus:outline-none focus:ring-1 focus:ring-gold/40"
+                          className="w-12 rounded border border-white/15 bg-white/8 px-1.5 py-0.5 font-mono text-[0.65rem] text-cream [appearance:textfield] focus:outline-none focus:ring-1 focus:ring-gold/40 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                         <span className="text-[0.62rem] text-cream/45">min</span>
                       </div>
