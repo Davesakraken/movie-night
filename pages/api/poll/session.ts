@@ -31,16 +31,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (passwordProtected && !isHostResult) {
     const { accessToken } = req.query
     if (!verifyAccessToken(pollId, accessToken)) {
-      return res.status(401).json({ passwordProtected: true, isHost: false, isOpen: poll.isOpen })
+      return res.status(401).json({ passwordProtected: true, isHost: false, stage: poll.stage })
     }
   }
 
-  const sorted = [...poll.movies].sort((a, b) => b.votes - a.votes)
-  const votedMovieIds = sorted.filter(m => m.voters?.includes(ip)).map(m => m.id)
+  const sortedAll = [...poll.movies].sort((a, b) => b.votes - a.votes)
+  const visibleMovies = (poll.stage === 'submissions' && !isHostResult) ? [] : sortedAll
+  const votedMovieIds = sortedAll.filter(m => m.voters?.includes(ip)).map(m => m.id)
 
   res.json({
-    movies: sorted,
-    isOpen: poll.isOpen,
+    movies: visibleMovies,
+    stage: poll.stage,
     config: clientConfig,
     passwordProtected,
     hasSubmitted: submittedMovieIds.length > 0,

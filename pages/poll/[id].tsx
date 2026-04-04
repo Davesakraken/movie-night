@@ -188,7 +188,7 @@ export default function PollPage() {
               hostStatus={host.hostStatus}
               copied={copied}
               shareUrl={shareUrl}
-              onToggle={() => host.hostAction("toggle")}
+              onAdvance={() => host.hostAction("advance")}
               onReset={async () => {
                 const ok = await confirm({
                   title: "Reset Poll",
@@ -214,8 +214,8 @@ export default function PollPage() {
           </div>
         )}
 
-        {/* ── Closed banner (guests only) ── */}
-        {data && !data.isOpen && !data.isHost && (
+        {/* ── Stage banners (guests only) ── */}
+        {data && !data.isHost && data.stage === "closed" && (
           <div className="mb-7 flex items-center justify-center gap-2.5 rounded-md border border-white/[0.06] bg-dark px-6 py-3.5 font-mono text-[0.72rem] uppercase tracking-[0.18em] text-cream">
             <span>🎬</span> Voting is now closed
           </div>
@@ -227,7 +227,12 @@ export default function PollPage() {
             Suggest a Film
           </h2>
 
-          {!data ? null : !derived.canStillSuggest ? (
+          {!data ? null : data.stage !== "submissions" ? (
+            <p className="py-2 text-[0.78rem] tracking-[0.04em] text-brown opacity-50">
+              Submissions are closed —{" "}
+              {data.stage === "voting" ? "voting is now open." : "this poll has ended."}
+            </p>
+          ) : !derived.canStillSuggest ? (
             <p className="flex items-center gap-2 py-2 text-[0.78rem] tracking-[0.04em] text-gold">
               ✓{" "}
               {data.config.maxSuggestionsPerUser === 1
@@ -239,7 +244,7 @@ export default function PollPage() {
               <p className="mb-4.5 text-[0.7rem] tracking-[0.04em] text-brown opacity-50">
                 {data.config.maxSuggestionsPerUser === null
                   ? (data.submittedMovieIds?.length ?? 0) > 0
-                    ? `${data.submittedMovieIds?.length} submitted — add more anytime`
+                    ? `${data.submittedMovieIds?.length} submitted`
                     : "Unlimited suggestions"
                   : data.config.maxSuggestionsPerUser === 1
                     ? "One suggestion per session"
@@ -252,22 +257,28 @@ export default function PollPage() {
                   value={suggestion.input}
                   onChange={(e) => suggestion.setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && suggestion.handleSubmitClick()}
-                  disabled={derived.busy || !data?.isOpen}
+                  disabled={derived.busy}
                   maxLength={100}
                   className="flex-1 border-brown/[0.18] bg-cream font-mono text-[0.85rem] text-dark placeholder:opacity-35 focus-visible:border-gold focus-visible:ring-gold/12"
                 />
                 <button
                   className="h-8 whitespace-nowrap rounded-md bg-brand-red px-5 font-mono text-[0.78rem] uppercase tracking-[0.1em] text-white transition-all hover:bg-[#a93226] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(192,57,43,0.3)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 max-sm:h-auto max-sm:w-full max-sm:py-3"
                   onClick={suggestion.handleSubmitClick}
-                  disabled={derived.busy || !suggestion.input.trim() || !data?.isOpen}
+                  disabled={derived.busy || !suggestion.input.trim()}
                 >
                   {derived.busy ? "..." : "Submit"}
                 </button>
               </div>
               {suggestion.error && (
-                <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-brand-red">⚠ {suggestion.error}</p>
+                <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-brand-red">
+                  ⚠ {suggestion.error}
+                </p>
               )}
-              {suggestion.flash && <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-gold">{suggestion.flash}</p>}
+              {suggestion.flash && (
+                <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-gold">
+                  {suggestion.flash}
+                </p>
+              )}
             </>
           )}
         </div>
@@ -280,7 +291,7 @@ export default function PollPage() {
             <h2 className="text-[1.5rem] font-bold text-dark" style={{ fontFamily: playfair }}>
               The Contenders
             </h2>
-            {data?.isOpen && derived.maxVotesPerUser !== 1 && (
+            {data?.stage === "voting" && derived.maxVotesPerUser !== 1 && (
               <span className="text-[0.68rem] uppercase tracking-[0.1em] text-brown opacity-45">
                 {derived.maxVotesPerUser === null
                   ? `${voting.votedFor.size} vote${voting.votedFor.size !== 1 ? "s" : ""} cast`
@@ -292,11 +303,17 @@ export default function PollPage() {
           </div>
           {data && (data.movies ?? []).length > 0 && (
             <p className="mb-5 text-[0.68rem] uppercase tracking-[0.1em] text-brown opacity-45">
-              {(data.movies ?? []).length} film{(data.movies ?? []).length !== 1 ? "s" : ""} in the running
+              {(data.movies ?? []).length} film{(data.movies ?? []).length !== 1 ? "s" : ""} in the
+              running
             </p>
           )}
 
-          {!data || (data.movies ?? []).length === 0 ? (
+          {data && !data.isHost && data.stage === "submissions" ? (
+            <div className="px-6 py-[52px] text-center text-[0.78rem] leading-[1.8] tracking-[0.1em] opacity-35">
+              <div className="mb-3.5 text-[2.2rem]">🎞</div>
+              Submissions are being collected — the host will reveal them when voting opens.
+            </div>
+          ) : !data || (data.movies ?? []).length === 0 ? (
             <div className="px-6 py-[52px] text-center text-[0.78rem] leading-[1.8] tracking-[0.1em] opacity-35">
               <div className="mb-3.5 text-[2.2rem]">🎞</div>
               No films yet — be the first to suggest one!

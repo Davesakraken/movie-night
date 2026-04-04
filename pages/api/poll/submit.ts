@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await runWithLock(pollId, res, async () => {
     const [poll, submissions] = await Promise.all([getPoll(pollId), getSubmissions(pollId, ip)])
     if (!poll) return { status: 404, body: { error: 'Poll not found' } }
-    if (!poll.isOpen) return { status: 403, body: { error: 'Voting is closed' } }
+    if (poll.stage !== 'submissions') return { status: 403, body: { error: 'Submissions are closed' } }
 
     const config = poll.config ?? DEFAULT_CONFIG
     const max = config.maxSuggestionsPerUser

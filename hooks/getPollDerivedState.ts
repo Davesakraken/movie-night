@@ -33,12 +33,14 @@ export function getPollDerivedState(
 
   const maxSuggestions = config ? config.maxSuggestionsPerUser : 1;
   const submittedCount = data?.submittedMovieIds?.length ?? 0;
-  const canStillSuggest = maxSuggestions === null || submittedCount < maxSuggestions;
+  const canStillSuggest =
+    data?.stage === 'submissions' &&
+    (maxSuggestions === null || submittedCount < maxSuggestions);
 
   const busy = submitting || fetchingPoster;
 
   function canVote(movieId: string): boolean {
-    if (!data?.isOpen) return false;
+    if (data?.stage !== 'voting') return false;
     return votedFor.has(movieId) || remainingVotes > 0;
   }
 

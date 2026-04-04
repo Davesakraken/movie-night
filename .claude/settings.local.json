@@ -24,7 +24,8 @@
       "Bash(npx shadcn@latest add alert-dialog input -y)",
       "Bash(grep -n \"from '\\\\.\\\\.\" /home/dave/projects/movie-night-project/pages/api/poll/*.ts /home/dave/projects/movie-night-project/pages/api/movies/search.ts)",
       "Bash(npx shadcn@latest add input-otp label --yes)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(find /home/dave/projects/movie-night-project/pages/api -type f -exec basename {} \\\\;)"
     ],
     "additionalDirectories": [
       "\\home\\dave\\projects\\movie-night-project\\pages",

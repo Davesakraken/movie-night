@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getPoll, savePoll, resetPoll, deletePoll, getHostToken, DEFAULT_CONFIG, PollConfig } from '@/lib/store'
+import { getPoll, savePoll, resetPoll, deletePoll, getHostToken, DEFAULT_CONFIG, PollConfig, PollStage } from '@/lib/store'
 import { isValidPollId, runWithLock } from '@/lib/api'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!isValidPollId(pollId)) return res.status(400).json({ error: 'Invalid pollId' })
   if (!hostToken || typeof hostToken !== 'string') return res.status(401).json({ error: 'Unauthorized' })
 
-  const validActions = ['reset', 'toggle', 'close', 'updateConfig']
+  const validActions = ['reset', 'advance', 'close', 'updateConfig']
   if (!validActions.includes(action as string)) return res.status(400).json({ error: 'Unknown action' })
 
   const storedToken = await getHostToken(pollId)
@@ -30,13 +30,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return
   }
 
-  if (action === 'toggle') {
+  if (action === 'advance') {
     await runWithLock(pollId, res, async () => {
       const poll = await getPoll(pollId)
       if (!poll) return { status: 404, body: { error: 'Poll not found' } }
-      poll.isOpen = !poll.isOpen
+      const next: PollStage =
+        poll.stage === 'submissions' ? 'voting'
+        : poll.stage === 'voting' ? 'closed'
+        : 'closed'
+      poll.stage = next
       await savePoll(poll)
-      return { status: 200, body: { success: true, isOpen: poll.isOpen } }
+      return { status: 200, body: { success: true, stage: next } }
     })
     return
   }

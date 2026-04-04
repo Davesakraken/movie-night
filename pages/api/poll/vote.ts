@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await runWithLock(pollId, res, async () => {
     const poll = await getPoll(pollId)
     if (!poll) return { status: 404, body: { error: 'Poll not found' } }
-    if (!poll.isOpen) return { status: 403, body: { error: 'Voting is closed' } }
+    if (poll.stage !== 'voting') return { status: 403, body: { error: 'Voting is not open' } }
 
     const movie = poll.movies.find(m => m.id === movieId)
     if (!movie) return { status: 404, body: { error: 'Movie not found' } }

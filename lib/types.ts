@@ -1,3 +1,6 @@
+// ── Poll stage ───────────────────────────────────────────────────
+export type PollStage = 'submissions' | 'voting' | 'closed'
+
 // ── Poll configuration ───────────────────────────────────────────
 export interface PollConfig {
   maxVotesPerUser: number | null; // null = unlimited; default 1
@@ -26,7 +29,7 @@ export interface StoredMovie {
 export interface Poll {
   pollId: string;
   movies: StoredMovie[];
-  isOpen: boolean;
+  stage: PollStage;
   createdAt: number;
   config: PollConfig;
 }
@@ -43,7 +46,7 @@ export interface Movie {
 
 export interface SessionData {
   movies: Movie[];
-  isOpen: boolean;
+  stage: PollStage;
   config: ClientPollConfig;
   hasSubmitted: boolean;
   submittedMovieIds: string[];

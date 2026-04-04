@@ -1,8 +1,8 @@
 import { Redis } from "@upstash/redis";
 import { randomBytes } from "crypto";
-import type { PollConfig, Poll, StoredMovie } from "@/lib/types";
+import type { PollConfig, Poll, StoredMovie, PollStage } from "@/lib/types";
 
-export type { PollConfig, Poll, StoredMovie };
+export type { PollConfig, Poll, StoredMovie, PollStage };
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL!,
@@ -68,7 +68,7 @@ export async function createPoll(): Promise<{ pollId: string; hostToken: string 
   const poll: Poll = {
     pollId,
     movies: [],
-    isOpen: true,
+    stage: 'submissions',
     createdAt: Date.now(),
     config: { ...DEFAULT_CONFIG },
   };
@@ -133,7 +133,7 @@ export async function resetPoll(pollId: string): Promise<void> {
   const poll: Poll = {
     pollId,
     movies: [],
-    isOpen: true,
+    stage: 'submissions',
     createdAt: Date.now(),
     config: existing?.config ?? { ...DEFAULT_CONFIG },
   };

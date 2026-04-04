@@ -85,7 +85,7 @@ interface FloatingHostPanelProps {
   hostStatus: string;
   copied: string | null;
   shareUrl: string;
-  onToggle: () => void;
+  onAdvance: () => void;
   onReset: () => void;
   onClose: () => void;
   onUpdateConfig: (patch: Partial<PollConfig>) => void;
@@ -99,7 +99,7 @@ export function FloatingHostPanel({
   hostStatus,
   copied,
   shareUrl,
-  onToggle,
+  onAdvance,
   onReset,
   onClose,
   onUpdateConfig,
@@ -217,10 +217,13 @@ export function FloatingHostPanel({
               <span
                 className={cn(
                   "inline-flex items-center gap-1 rounded px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.1em]",
-                  data.isOpen ? "bg-green-500/20 text-green-400" : "bg-brand-red/25 text-red-400",
+                  data.stage === 'submissions' && "bg-gold/20 text-gold",
+                  data.stage === 'voting' && "bg-green-500/20 text-green-400",
+                  data.stage === 'closed' && "bg-brand-red/25 text-red-400",
                 )}
               >
-                ● {data.isOpen ? "Open" : "Closed"}
+                ●{" "}
+                {data.stage === 'submissions' ? "Submissions" : data.stage === 'voting' ? "Voting" : "Closed"}
               </span>
             )}
             {/* Collapse */}
@@ -281,10 +284,16 @@ export function FloatingHostPanel({
             <div className="mb-3 grid grid-cols-2 gap-2">
               <button
                 className="truncate rounded-md bg-white/10 px-3 py-2 font-mono text-[0.68rem] uppercase tracking-[0.08em] text-cream transition-all hover:opacity-80 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={onToggle}
-                disabled={hostLoading}
+                onClick={onAdvance}
+                disabled={hostLoading || data.stage === 'closed'}
               >
-                {hostLoading ? "..." : data.isOpen ? "Pause" : "Open"}
+                {hostLoading
+                  ? "..."
+                  : data.stage === 'submissions'
+                    ? "Open Voting"
+                    : data.stage === 'voting'
+                      ? "Close Voting"
+                      : "Closed"}
               </button>
               <button
                 className="truncate rounded-md bg-brand-red/70 px-3 py-2 font-mono text-[0.68rem] uppercase tracking-[0.08em] text-white transition-all hover:opacity-80 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
