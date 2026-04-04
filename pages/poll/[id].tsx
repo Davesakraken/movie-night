@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import type { GetServerSideProps } from "next";
@@ -8,9 +8,14 @@ import { Ornament } from "@/components/Ornament";
 import { MovieCard } from "@/components/MovieCard";
 import { FloatingHostPanel } from "@/components/FloatingHostPanel";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { usePollSession } from "@/hooks/usePollSession";
+import { useVoting } from "@/hooks/useVoting";
+import { useSuggestion } from "@/hooks/useSuggestion";
+import { useHostActions } from "@/hooks/useHostActions";
+import { getPollDerivedState } from "@/hooks/getPollDerivedState";
 import { getPoll } from "@/lib/store";
 import { verifyAccessToken } from "@/lib/api";
-import type { PollConfig, SessionData, PosterModal } from "@/lib/types";
+import type { PollConfig } from "@/lib/types";
 
 const playfair = 'var(--font-playfair, "Playfair Display", serif)';
 
@@ -19,155 +24,32 @@ export default function PollPage() {
   const router = useRouter();
   const { id: pollId, host: hostToken } = router.query as { id?: string; host?: string };
 
-  const [data, setData] = useState<SessionData | null>(null);
-  const [input, setInput] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [voting, setVoting] = useState<string | null>(null);
-  const [removing, setRemoving] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [votedFor, setVotedFor] = useState<Set<string>>(new Set());
-  const [flash, setFlash] = useState<string | null>(null);
-  const [fetchingPoster, setFetchingPoster] = useState(false);
-  const [modal, setModal] = useState<PosterModal | null>(null);
-  const [lightboxPoster, setLightboxPoster] = useState<{ url: string; title: string } | null>(null);
-  const [hostLoading, setHostLoading] = useState(false);
-  const [hostStatus, setHostStatus] = useState("");
-  const [copied, setCopied] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const isDesktop = useMediaQuery("(min-width: 1300px)");
 
-  const fetchSession = useCallback(async () => {
-    if (!pollId) return;
-    const params = new URLSearchParams({ pollId });
-    if (hostToken) params.set("hostToken", hostToken);
-    const res = await fetch(`/api/poll/session?${params}`);
-    if (res.status === 404) {
-      setNotFound(true);
-      return;
-    }
-    const json = await res.json();
-    setData(json);
-    setVotedFor(new Set(json.votedMovieIds ?? []));
-  }, [pollId, hostToken]);
+  // Layer 1: server state
+  const { data, notFound, refetch } = usePollSession(pollId, hostToken, router.isReady);
 
-  useEffect(() => {
-    if (!router.isReady) return;
-    fetchSession();
-    const interval = setInterval(fetchSession, 3000);
-    return () => clearInterval(interval);
-  }, [router.isReady, fetchSession]);
+  // Layer 2: interactions
+  const suggestion = useSuggestion(pollId, refetch);
+  const voting = useVoting(pollId, data?.votedMovieIds ?? [], refetch);
+  const host = useHostActions(pollId, hostToken, refetch, () => router.push("/"));
 
-  async function handleSubmitClick() {
-    if (!input.trim()) return;
-    setFetchingPoster(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/movies/search?title=${encodeURIComponent(input.trim())}`);
-      const json = await res.json();
-      if (json.poster) {
-        setModal({ poster: json.poster, title: json.title || input.trim(), year: json.year || "" });
-        setFetchingPoster(false);
-        return;
-      }
-    } catch {}
-    setFetchingPoster(false);
-    await doSubmit();
-  }
+  // Layer 3: derived state
+  const derived = getPollDerivedState(
+    data,
+    voting.votedFor,
+    voting.voting,
+    voting.removing,
+    suggestion.submitting,
+    suggestion.fetchingPoster,
+  );
 
-  async function doSubmit(posterUrl?: string) {
-    setSubmitting(true);
-    const res = await fetch("/api/poll/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pollId, title: input.trim(), posterUrl }),
-    });
-    const json = await res.json();
-    setSubmitting(false);
-    if (!res.ok) {
-      setError(json.error);
-    } else {
-      setInput("");
-      setFlash("Movie added!");
-      setTimeout(() => setFlash(null), 2500);
-      fetchSession();
-    }
-  }
+  // Local UI state (pure feedback, no async, no side effects)
+  const [lightboxPoster, setLightboxPoster] = useState<{ url: string; title: string } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
-  async function vote(movieId: string) {
-    setVoting(movieId);
-    const res = await fetch("/api/poll/vote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pollId, movieId }),
-    });
-    setVoting(null);
-    if (res.ok) {
-      setVotedFor((prev) => {
-        const next = new Set(prev);
-        if (next.has(movieId)) next.delete(movieId);
-        else next.add(movieId);
-        return next;
-      });
-      fetchSession();
-    } else {
-      const json = await res.json();
-      setError(json.error || "Could not vote");
-      setTimeout(() => setError(""), 3000);
-    }
-  }
-
-  async function remove(movieId: string) {
-    setRemoving(movieId);
-    const res = await fetch("/api/poll/remove", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pollId, movieId }),
-    });
-    setRemoving(null);
-    if (res.ok) {
-      setFlash("Suggestion removed.");
-      setTimeout(() => setFlash(null), 2500);
-      fetchSession();
-    } else {
-      const json = await res.json();
-      setError(json.error || "Could not remove suggestion");
-      setTimeout(() => setError(""), 3000);
-    }
-  }
-
-  async function hostAction(act: string, extra?: Record<string, unknown>) {
-    setHostLoading(true);
-    setHostStatus("");
-    const res = await fetch("/api/poll/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: act, pollId, hostToken, ...extra }),
-    });
-    const json = await res.json();
-    setHostLoading(false);
-    if (!res.ok) {
-      setHostStatus("Error: " + json.error);
-    } else {
-      if (json.closed) {
-        router.push("/");
-        return;
-      }
-      setHostStatus(json.message || "");
-      if (json.isOpen !== undefined) {
-        setData((prev) => (prev ? { ...prev, isOpen: json.isOpen } : prev));
-      }
-      if (json.config) {
-        setData((prev) => (prev ? { ...prev, config: json.config, ...(json.passwordProtected !== undefined ? { passwordProtected: json.passwordProtected } : {}) } : prev));
-      }
-      if (act === "reset") fetchSession();
-      if (hostStatus) setTimeout(() => setHostStatus(""), 3000);
-    }
-  }
-
-  async function updateConfig(patch: Partial<PollConfig>) {
-    await hostAction("updateConfig", { config: { ...(data?.config ?? {}), ...patch } });
-  }
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/poll/${pollId}` : "";
 
   function copyToClipboard(text: string, which: string) {
     navigator.clipboard.writeText(text).then(() => {
@@ -176,17 +58,9 @@ export default function PollPage() {
     });
   }
 
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/poll/${pollId}` : "";
-
-  const maxVotes = data ? Math.max(...(data.movies ?? []).map((m) => m.votes), 1) : 1;
-  const busy = submitting || fetchingPoster;
-
-  const config = data?.config;
-  const maxVotesPerUser = config ? config.maxVotesPerUser : 1;
-  const remainingVotes = maxVotesPerUser === null ? Infinity : maxVotesPerUser - votedFor.size;
-  const maxSuggestions = config ? config.maxSuggestionsPerUser : 1;
-  const submittedCount = data?.submittedMovieIds?.length ?? 0;
-  const canStillSuggest = maxSuggestions === null || submittedCount < maxSuggestions;
+  function updateConfig(patch: Partial<PollConfig>) {
+    host.hostAction("updateConfig", { config: { ...(data?.config ?? {}), ...patch } });
+  }
 
   if (notFound) {
     return (
@@ -221,7 +95,7 @@ export default function PollPage() {
       {confirmDialog}
 
       {/* ── Poster confirmation modal ── */}
-      {modal && (
+      {suggestion.modal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/70 p-5 backdrop-blur-sm">
           <div className="w-full max-w-[300px] rounded-xl bg-white px-7 py-8 text-center shadow-[0_24px_64px_rgba(26,18,9,0.45)]">
             <p className="mb-4 text-[0.65rem] uppercase tracking-[0.2em] text-brown opacity-45">
@@ -229,36 +103,30 @@ export default function PollPage() {
             </p>
             <img
               className="mx-auto mb-5 block h-[222px] w-[150px] rounded-md object-cover shadow-[0_6px_24px_rgba(26,18,9,0.25)]"
-              src={modal.poster}
-              alt={modal.title}
+              src={suggestion.modal.poster}
+              alt={suggestion.modal.title}
             />
             <div
               className="mb-1 text-[1.05rem] font-bold leading-snug"
               style={{ fontFamily: playfair }}
             >
-              {modal.title}
+              {suggestion.modal.title}
             </div>
-            {modal.year && (
+            {suggestion.modal.year && (
               <div className="mb-6 text-[0.68rem] tracking-[0.12em] text-brown opacity-45">
-                {modal.year}
+                {suggestion.modal.year}
               </div>
             )}
             <div className="flex flex-col gap-2">
               <button
                 className="w-full rounded-md bg-dark py-3 font-mono text-[0.75rem] uppercase tracking-[0.1em] text-cream transition-colors hover:bg-brown"
-                onClick={() => {
-                  setModal(null);
-                  doSubmit(modal.poster);
-                }}
+                onClick={() => suggestion.confirmPoster(suggestion.modal!.poster)}
               >
                 That&apos;s the one
               </button>
               <button
                 className="w-full rounded-md border border-brown/15 bg-transparent py-3 font-mono text-[0.7rem] uppercase tracking-[0.08em] text-brown opacity-55 transition-opacity hover:opacity-100"
-                onClick={() => {
-                  setModal(null);
-                  doSubmit();
-                }}
+                onClick={() => suggestion.skipPoster()}
               >
                 Wrong film, skip poster
               </button>
@@ -316,11 +184,11 @@ export default function PollPage() {
             <FloatingHostPanel
               mode={isDesktop ? "floating" : "inline"}
               data={data}
-              hostLoading={hostLoading}
-              hostStatus={hostStatus}
+              hostLoading={host.hostLoading}
+              hostStatus={host.hostStatus}
               copied={copied}
               shareUrl={shareUrl}
-              onToggle={() => hostAction("toggle")}
+              onToggle={() => host.hostAction("toggle")}
               onReset={async () => {
                 const ok = await confirm({
                   title: "Reset Poll",
@@ -328,7 +196,7 @@ export default function PollPage() {
                   confirmLabel: "Reset",
                   danger: true,
                 });
-                if (ok) hostAction("reset");
+                if (ok) host.hostAction("reset");
               }}
               onClose={async () => {
                 const ok = await confirm({
@@ -338,7 +206,7 @@ export default function PollPage() {
                   confirmLabel: "Close Poll",
                   danger: true,
                 });
-                if (ok) hostAction("close");
+                if (ok) host.hostAction("close");
               }}
               onUpdateConfig={updateConfig}
               onCopy={copyToClipboard}
@@ -359,47 +227,47 @@ export default function PollPage() {
             Suggest a Film
           </h2>
 
-          {!canStillSuggest ? (
+          {!data ? null : !derived.canStillSuggest ? (
             <p className="flex items-center gap-2 py-2 text-[0.78rem] tracking-[0.04em] text-gold">
               ✓{" "}
-              {maxSuggestions === 1
+              {data.config.maxSuggestionsPerUser === 1
                 ? "Your suggestion has been added."
-                : `You've submitted all ${maxSuggestions} suggestions.`}
+                : `You've submitted all ${data.config.maxSuggestionsPerUser} suggestions.`}
             </p>
           ) : (
             <>
               <p className="mb-4.5 text-[0.7rem] tracking-[0.04em] text-brown opacity-50">
-                {maxSuggestions === null
-                  ? submittedCount > 0
-                    ? `${submittedCount} submitted — add more anytime`
+                {data.config.maxSuggestionsPerUser === null
+                  ? (data.submittedMovieIds?.length ?? 0) > 0
+                    ? `${data.submittedMovieIds?.length} submitted — add more anytime`
                     : "Unlimited suggestions"
-                  : maxSuggestions === 1
+                  : data.config.maxSuggestionsPerUser === 1
                     ? "One suggestion per session"
-                    : `${submittedCount} of ${maxSuggestions} suggestions used`}
+                    : `${data.submittedMovieIds?.length ?? 0} of ${data.config.maxSuggestionsPerUser} suggestions used`}
               </p>
               <div className="flex gap-2.5 max-sm:flex-col">
                 <Input
                   type="text"
                   placeholder="e.g. Legally Blonde..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSubmitClick()}
-                  disabled={busy || !data?.isOpen}
+                  value={suggestion.input}
+                  onChange={(e) => suggestion.setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && suggestion.handleSubmitClick()}
+                  disabled={derived.busy || !data?.isOpen}
                   maxLength={100}
                   className="flex-1 border-brown/[0.18] bg-cream font-mono text-[0.85rem] text-dark placeholder:opacity-35 focus-visible:border-gold focus-visible:ring-gold/12"
                 />
                 <button
                   className="h-8 whitespace-nowrap rounded-md bg-brand-red px-5 font-mono text-[0.78rem] uppercase tracking-[0.1em] text-white transition-all hover:bg-[#a93226] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(192,57,43,0.3)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 max-sm:h-auto max-sm:w-full max-sm:py-3"
-                  onClick={handleSubmitClick}
-                  disabled={busy || !input.trim() || !data?.isOpen}
+                  onClick={suggestion.handleSubmitClick}
+                  disabled={derived.busy || !suggestion.input.trim() || !data?.isOpen}
                 >
-                  {busy ? "..." : "Submit"}
+                  {derived.busy ? "..." : "Submit"}
                 </button>
               </div>
-              {error && (
-                <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-brand-red">⚠ {error}</p>
+              {suggestion.error && (
+                <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-brand-red">⚠ {suggestion.error}</p>
               )}
-              {flash && <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-gold">{flash}</p>}
+              {suggestion.flash && <p className="mt-3 text-[0.74rem] tracking-[0.03em] text-gold">{suggestion.flash}</p>}
             </>
           )}
         </div>
@@ -412,12 +280,12 @@ export default function PollPage() {
             <h2 className="text-[1.5rem] font-bold text-dark" style={{ fontFamily: playfair }}>
               The Contenders
             </h2>
-            {data?.isOpen && maxVotesPerUser !== 1 && (
+            {data?.isOpen && derived.maxVotesPerUser !== 1 && (
               <span className="text-[0.68rem] uppercase tracking-[0.1em] text-brown opacity-45">
-                {maxVotesPerUser === null
-                  ? `${votedFor.size} vote${votedFor.size !== 1 ? "s" : ""} cast`
-                  : remainingVotes > 0
-                    ? `${remainingVotes} vote${remainingVotes !== 1 ? "s" : ""} remaining`
+                {derived.maxVotesPerUser === null
+                  ? `${voting.votedFor.size} vote${voting.votedFor.size !== 1 ? "s" : ""} cast`
+                  : derived.remainingVotes > 0
+                    ? `${derived.remainingVotes} vote${derived.remainingVotes !== 1 ? "s" : ""} remaining`
                     : "All votes cast"}
               </span>
             )}
@@ -434,43 +302,35 @@ export default function PollPage() {
               No films yet — be the first to suggest one!
             </div>
           ) : (
-            (data.movies ?? []).map((movie, i) => {
-              const isMyMovie = (data.submittedMovieIds ?? []).includes(movie.id);
-              const windowStart = Math.max(movie.submittedAt, config?.removalEnabledAt ?? 0);
-              const withinWindow =
-                config?.removalWindowMinutes === null ||
-                (config?.removalWindowMinutes != null &&
-                  Date.now() - windowStart <= config.removalWindowMinutes * 60 * 1000);
-              const canRemove =
-                isMyMovie &&
-                (config?.allowRemoval ?? false) &&
-                withinWindow &&
-                removing !== movie.id;
+            (data.movies ?? []).map((movie, i) => (
+              <MovieCard
+                key={movie.id}
+                rank={i + 1}
+                title={movie.title}
+                votes={movie.votes}
+                maxVotes={derived.maxVotes}
+                posterUrl={movie.posterUrl}
+                isLeader={i === 0 && movie.votes > 0}
+                isVoted={voting.votedFor.has(movie.id)}
+                isVoting={voting.voting === movie.id}
+                canVote={derived.canVote(movie.id)}
+                canRemove={derived.canRemove(movie)}
+                animationDelay={i * 0.05}
+                onVote={() => voting.vote(movie.id)}
+                onRemove={() => voting.remove(movie.id)}
+                onPosterClick={
+                  movie.posterUrl
+                    ? () => setLightboxPoster({ url: movie.posterUrl!, title: movie.title })
+                    : undefined
+                }
+              />
+            ))
+          )}
 
-              return (
-                <MovieCard
-                  key={movie.id}
-                  rank={i + 1}
-                  title={movie.title}
-                  votes={movie.votes}
-                  maxVotes={maxVotes}
-                  posterUrl={movie.posterUrl}
-                  isLeader={i === 0 && movie.votes > 0}
-                  isVoted={votedFor.has(movie.id)}
-                  isVoting={voting === movie.id}
-                  canVote={data.isOpen && (votedFor.has(movie.id) || remainingVotes > 0)}
-                  canRemove={canRemove}
-                  animationDelay={i * 0.05}
-                  onVote={() => vote(movie.id)}
-                  onRemove={() => remove(movie.id)}
-                  onPosterClick={
-                    movie.posterUrl
-                      ? () => setLightboxPoster({ url: movie.posterUrl!, title: movie.title })
-                      : undefined
-                  }
-                />
-              );
-            })
+          {voting.voteError && (
+            <p className="mt-3 text-center text-[0.74rem] tracking-[0.03em] text-brand-red">
+              ⚠ {voting.voteError}
+            </p>
           )}
         </div>
       </div>
